@@ -1,0 +1,24 @@
+[package]
+name = "sidescope"
+version = "0.1.0"
+edition = "2024"
+license = "Apache-2.0"
+
+[dependencies]
+gtk = { package = "gtk4", version = "0.11" }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_4"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", default-features = false, features = ["alloc"] }
+toml = { version = "0.9", default-features = false, features = ["std", "serde", "parse"] }
+libc = "0.2"
+
+# Release size profile: strip + fat LTO + single codegen unit measured -37.5%
+# on the binary. panic stays unwind so GTK callback panics stay contained
+# (panic="abort" rejected: glib-contained callback panics become aborts).
+# opt-level untouched: z/s measured LARGER on this codebase.
+[profile.release]
+strip = true
+lto = "fat"
+codegen-units = 1
+
+[dev-dependencies]

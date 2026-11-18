@@ -1,0 +1,2 @@
+enabled = ["openai", "zai", "antigravity"]
+show_agy_gpt_oss = true

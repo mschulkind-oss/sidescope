@@ -1,0 +1,15 @@
+/* Opt-in geometry only: selected theme colors, fonts and graph ink are untouched. */
+.screen-fit .stripe-header { padding: 6px 14px; }
+.screen-fit .card-stack { padding: 6px; }
+.screen-fit .kicker { margin: 0; }
+.screen-fit .footer { padding: 4px 14px; }
+.fit-card { padding: 5px; }
+.fit-card .card-title { margin-top: 0; }
+.fit-card .metric { margin-top: 2px; }
+.fit-card .source-note { margin-top: 2px; }
+/* Reading rows sit 2px below the title and Info button; the card's rows reclaim
+   a pixel each, which is what the hinted font metrics cost them. */
+.fit-card .card-head { margin-bottom: 2px; }
+.fit-card .history-row { margin-top: 0; }
+.fit-card .core-row { min-height: 24px; }
+.density-toggle { font-size: 12px; min-height: 22px; padding: 1px 6px; }

@@ -1,0 +1,13 @@
+# Native GTK development and real headless Sway visual tests.
+# The Nix flake provides the same packages immediately in an existing jail;
+# these generic packages make them available by default after a jail rebuild.
+[install]
+nix = [
+  "gtk4",           # GTK runtime for the native application
+  "libadwaita",     # native styled controls and window
+  "pkg-config",     # native dependency discovery for gtk-rs builds
+  "sway-unwrapped", # isolated headless compositor; wrapper expects a host D-Bus session
+  "grim",           # capture the actual compositor output
+  "jq",             # assert real window geometry from Sway's JSON tree
+  "dbus",           # desktop session support
+]

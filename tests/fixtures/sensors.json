@@ -1,0 +1,6 @@
+[
+  { "chip": "coretemp", "channel": "temp1", "label": "CPU package", "raw": 54200 },
+  { "chip": "amdgpu", "channel": "temp1", "label": "GPU edge", "raw": 46000 },
+  { "chip": "synthetic-board", "channel": "fan1", "label": "Case fan", "raw": 820 },
+  { "chip": "amdgpu", "channel": "fan1", "label": "GPU fan", "raw": 0 }
+]

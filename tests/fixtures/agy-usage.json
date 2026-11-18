@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {"id":"openai","display_name":"Codex","plan":"ChatGPT Pro","status":"ready","metrics":[
+      {"label":"Codex weekly","percent":5,"value":"5%","headline":"percent","detail":"Resets in 3d","reset_at":"@WEEKLY_RESET@","window_secs":604800}
+    ]},
+    {"id":"zai","display_name":"Z.AI","plan":"GLM Coding Pro","status":"ready","metrics":[
+      {"label":"Session (5h)","percent":36,"value":"36%","headline":"percent","detail":"Resets in 2h","reset_at":"@SESSION_RESET@","window_secs":18000},
+      {"label":"Weekly","percent":62,"value":"62%","headline":"percent","detail":"Resets in 3d","reset_at":"@WEEKLY_RESET@","window_secs":604800}
+    ]},
+    {"id":"antigravity","display_name":"Antigravity","plan":"Antigravity","status":"ready","metrics":[
+      {"label":"Gemini","percent":22,"value":"22%","headline":"percent","detail":"Resets in 2h","reset_at":"@SESSION_RESET@","window_secs":18000},
+      {"label":"Claude & GPT OSS","percent":0,"value":"0%","headline":"percent","detail":"Resets in 2h","reset_at":"@SESSION_RESET@","window_secs":18000},
+      {"label":"Gemini","percent":29,"value":"29%","headline":"percent","detail":"Resets in 3d","reset_at":"@WEEKLY_RESET@","window_secs":604800},
+      {"label":"Claude & GPT OSS","percent":4,"value":"4%","headline":"percent","detail":"Resets in 3d","reset_at":"@WEEKLY_RESET@","window_secs":604800}
+    ]}
+  ]
+}

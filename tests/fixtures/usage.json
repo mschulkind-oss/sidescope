@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {"id":"openrouter","display_name":"OpenRouter","plan":"API credits","status":"ready","stale":false,"metrics":[{"label":"Available balance","percent":0,"value":"$18.40","headline":"value","detail":"Account credit"}]},
+    {"id":"deepseek","display_name":"DeepSeek","plan":"API balance","status":"ready","stale":false,"metrics":[],"sections":[{"type":"text","label":"Balance","value":"$9.84"}]},
+    {"id":"anthropic","display_name":"Claude","plan":"Claude Code","status":"ready","stale":false,"metrics":[{"label":"Current session","percent":38,"value":"62% left","headline":"percent","window_secs":18000,"detail":"Resets in 2h 14m · 25% elapsed · 13pts ahead"},{"label":"Weekly limit","percent":67,"value":"33% left","headline":"percent","window_secs":604800,"detail":"Resets on Monday · 75% elapsed · 8pts under"}]},
+    {"id":"openai","display_name":"Codex","plan":"ChatGPT subscription","status":"ready","stale":false,"metrics":[{"label":"5-hour window","percent":22,"value":"78% left","headline":"percent","detail":"Resets in 3h 40m · 21% elapsed · 1pts ahead"},{"label":"Weekly window","percent":55,"value":"45% left","headline":"percent","detail":"Resets on Sunday · 55% elapsed · on track"}]},
+    {"id":"zai","display_name":"Z.AI","plan":"Coding plan","status":"ready","stale":true,"metrics":[{"label":"Session capacity","percent":46,"value":"54% left","headline":"percent","detail":"Previously reported"}]},
+    {"id":"antigravity","display_name":"Agy","plan":"Google Antigravity","status":"error","error":"Local quota source unavailable","metrics":[]}
+  ]
+}

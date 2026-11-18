@@ -1,0 +1,62 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: read
+jobs:
+  linux:
+    if: github.repository_owner == 'mschulkind-oss'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate version tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag=${GITHUB_REF_NAME}
+          [[ "$tag" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]] || exit 1
+          package_version=$(awk -F '"' '/^\[package\]/{package=1; next} /^\[/{package=0} package && /^version = /{print $2; exit}' Cargo.toml)
+          [[ "${tag#v}" == "$package_version" ]]
+      - uses: cachix/install-nix-action@v31
+      - name: Pinned-shell quality gate
+        run: nix develop --command just check-ci
+      - name: Headless Wayland smoke test
+        run: nix develop --command just test-visual
+      # Nix-built GTK executables need Nix store paths; package a host-built binary instead.
+      - name: Install Ubuntu development libraries
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends build-essential pkg-config libgtk-4-dev libadwaita-1-dev
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.98.1 --profile minimal
+      - name: Build portable-to-Ubuntu binary
+        run: CARGO_TARGET_DIR=target/host cargo +1.98.1 build --locked --release
+      - name: Package binary and verify dynamic dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin=target/host/release/sidescope
+          ldd "$bin" | tee dependencies.txt
+          ! grep -Eq 'not found|/nix/store/' dependencies.txt
+          name="sidescope-${GITHUB_REF_NAME}-ubuntu24.04-x86_64"
+          mkdir -p "dist/$name"
+          cp "$bin" README.md LICENSE "dist/$name/"
+          cat > "dist/$name/INSTALL.txt" <<'TXT'
+          Linux x86_64, built on Ubuntu 24.04. Requires a Wayland compositor,
+          GTK4 and libadwaita runtime libraries (Ubuntu: libgtk-4-1 and
+          libadwaita-1-0). Install ai-usagebar separately for live data;
+          use --report with a local versioned JSON report for sample mode.
+          This is an early prototype, not a supported cross-distribution package.
+          TXT
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          (cd dist && sha256sum "$name.tar.gz" > SHA256SUMS)
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          files: |
+            dist/*.tar.gz
+            dist/SHA256SUMS

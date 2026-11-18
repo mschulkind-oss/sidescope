@@ -1,0 +1,40 @@
+# Non-secret preferences. Copy to ~/.config/sidescope/config.toml.
+# Provider selection affects AI cards only; local/weather cards remain visible.
+# Omit enabled for automatic visibility of reported providers.
+# Agents come from ai-usagebar's report, in its order and under its names; this
+# list only narrows them. Any reported id is valid, and one the report omits stays
+# visible as unavailable.
+# enabled = ["openrouter", "deepseek", "openai", "anthropic", "antigravity", "muse"]
+show_agy_gpt_oss = false
+# Optional closed theme id; omitted uses Original, including compact CPU cores.
+# Each theme still curates a CPU/weather/telemetry layout for Comfortable density.
+# Runtime theme/density browsing is session-only and never rewrites this file.
+# theme = "paper"
+# Optional independent density. Omitted means "screen-fit" (height-optimized pack).
+# Click the separate footer density button or press D to toggle at runtime.
+# "comfortable" restores each theme's curated CPU/weather/telemetry layout.
+# Genuine overflow still scrolls in either density.
+# density = "screen-fit" # or "comfortable"
+
+# Read-only hardware sensors; no setup or privileges needed if hwmon is exposed.
+# Omit this table for labeled CPU package/GPU edge temperatures and labeled fans.
+# Explicit channels REPLACE defaults; [] intentionally selects no channels.
+# device is the canonical chip device path (readlink -f on hwmonN/device, or
+# the canonical hwmon directory's parent before /hwmon/hwmonN). Never use hwmonN.
+# All temperatures are Celsius, inputs are millidegrees; fans are RPM.
+# Labels are your descriptions, never inferred from a nonzero fan reading.
+# [sensors]
+# channels = [
+#   { chip = "coretemp", device = "/sys/devices/platform/coretemp.0", channel = "temp1", label = "CPU package" },
+#   { chip = "example-chip", device = "/sys/devices/platform/example", channel = "fan1", label = "Chosen fan" },
+# ]
+
+# No location requests until this entire table is explicitly configured.
+# Replace these example coordinates and label with your chosen place.
+# Coordinates are sent to Open-Meteo; the label stays local. No IP/GPS lookup.
+# The free API is for non-commercial use only.
+# [weather]
+# latitude = 0.0
+# longitude = 0.0
+# place = "Your chosen place"
+# units = "celsius" # or "fahrenheit"; omitted defaults to celsius

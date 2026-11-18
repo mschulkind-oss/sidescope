@@ -1,0 +1,70 @@
+window { background: #101720; color: #eaf0ec; font-family: "Sans"; }
+.stripe { background: #101720; }
+/* Compositor focus lights both ends; unfocused content stays readable. */
+.stripe-header { padding: 12px 14px 11px; background: #202b32; border-bottom: 2px solid #4b6264; }
+.stripe.window-focused .stripe-header { background: #194439; border-bottom-color: #a1e7b8; }
+.stripe.window-focused .kicker { color: #b5f1ca; }
+.kicker, .section-title, .card-kicker, .state, .footer-label, .footer-right { font-size: 12px; font-weight: 700; letter-spacing: 0.8px; }
+.kicker { color: #85c9ac; margin-bottom: 2px; }
+.headline { font-size: 24px; font-weight: 700; letter-spacing: -0.3px; color: #f1f4eb; }
+.refresh-button { background: #304a4c; color: #d8f2e0; border-radius: 18px; min-width: 36px; min-height: 36px; padding: 0; }
+.refresh-button:hover { background: #426d67; }
+.card-stack { padding: 12px; }
+.section-heading { margin: 0 2px; }
+.section-title { color: #a7c3bc; }
+.section-count { color: #a1b9bb; font-size: 12px; }
+.usage-card { background: #1b2931; border: 1px solid #344b50; border-radius: 11px; padding: 10px; }
+.usage-card.featured { background: #21382f; border-color: #577e68; }
+.card-kicker { color: #a4d5b7; }
+.state { color: #91ceab; font-size: 12px; letter-spacing: 0.3px; }
+.state.muted { color: #e4af7c; }
+.card-title { font-size: 20px; font-weight: 700; margin-top: 4px; color: #f0f3ed; }
+.card-subtitle { font-size: 13px; color: #b4c7c6; margin-bottom: 4px; }
+.metric { margin-top: 7px; }
+.metric-label { font-size: 14px; color: #c2d5d2; }
+.metric-value { font-size: 16px; font-weight: 700; color: #e7f2e8; }
+.metric-detail, .source-note { font-size: 12px; color: #aebfbd; }
+.source-note { margin-top: 6px; }
+progressbar.meter trough { min-height: 7px; border-radius: 4px; background: #3b5153; }
+progressbar.meter progress { border-radius: 4px; background: #86d1a3; }
+/* A bar carrying the elapsed-time tick is taller, so the tick reads as a mark
+   rather than a lump on the track. The direction classes below only color it. */
+progressbar.meter.time-marked trough { min-height: 10px; border-radius: 5px; }
+progressbar.meter.pace-over progress { background: #e6a06c; }
+progressbar.meter.pace-under progress { background: #86d1a3; }
+progressbar.meter.pace-even progress { background: #9ac9cf; }
+.pace-label, .pace-time { font-size: 12px; font-weight: 700; }
+.pace-label.pace-over { color: #f0b687; }
+.pace-label.pace-under { color: #a4e8b5; }
+.pace-label.pace-even { color: #aed7db; }
+.pace-time { color: #b6c9ce; }
+.unavailable { font-size: 13px; color: #e6c4a4; background: #3a3230; padding: 8px; border-radius: 6px; margin-top: 6px; }
+.empty-state { font-size: 15px; color: #b8ceca; padding: 12px 0; }
+.footnote { font-size: 12px; color: #b0c3c1; margin: 5px 2px 0; }
+.error-banner { color: #ffcaad; padding: 8px; background: #56352c; border-radius: 6px; }
+.footer { padding: 8px 14px; background: #202b32; border-top: 2px solid #4b6264; }
+.stripe.window-focused .footer { background: #194439; border-top-color: #a1e7b8; }
+.footer-label { color: #91ceab; }
+.footer-right { color: #adbec0; font-size: 12px; }
+.shortcuts-scrim { background: alpha(#070e13, 0.88); padding: 20px; }
+.shortcuts-panel { background: #20313b; color: #f1f6f1; border: 1px solid #5b8880; border-radius: 17px; padding: 24px; min-width: 270px; }
+.shortcut-row { padding: 5px 0; }
+.shortcut-key { font-size: 18px; font-weight: 800; color: #a9e7c0; }
+.shortcut-description { font-size: 16px; color: #e1efed; }
+.shortcut-close { margin-top: 12px; font-size: 15px; }
+/* Hinted font metrics round each line's ascent and descent, which makes a line
+   about a pixel taller. A pixel off each forecast row and history row pays for
+   it, so cards keep the heights the density budgets were measured at. */
+.history-row { margin-top: 3px; }
+.core-label { font-size: 12px; color: #c2d5d2; }
+.core-row { min-height: 24px; }
+.weather-temperature { font-size: 26px; font-weight: 700; }
+.weather-body { margin-top: 2px; }
+.axis-label { font-size: 12px; color: #aebfbd; }
+.day-label, .day-temperature { font-size: 13px; color: #c2d5d2; }
+.forecast-day { min-height: 21px; }
+.forecast-detail button { font-size: 12px; padding: 1px 5px; min-height: 18px; background: #304a4c; }
+.hourly-details { font-size: 13px; padding: 8px; }
+/* Theme chrome is deliberately confined to the footer. Original rules above stay intact. */
+.theme-selector { margin-top: 4px; }
+.theme-selector button { font-size: 12px; min-height: 22px; padding: 1px 6px; }

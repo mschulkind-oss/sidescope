@@ -1,0 +1,5 @@
+# Sidescope — agent guide
+
+This repo is a native Rust + GTK4 prototype. Use `just build` / `just dev` for the application: the wrapper chooses host system libraries and `target/host`, or the jail's Nix shell and `target/nix`. `just doctor` checks build dependencies, `just check-ci` is the read-only quality gate, and `just test-visual` runs a private headless Sway compositor. Inspect the generated ignored PNGs directly after visual changes; a successful capture command alone does not establish visual quality.
+
+[`src/lib.rs`](./src/lib.rs) parses only the local versioned `ai-usagebar usage --json` report; synthetic data lives under `tests/fixtures/`. Do not commit credentials, authenticated response captures or personal account details. [`src/main.rs`](./src/main.rs) renders the GTK surface; [`scripts/visual-test.sh`](./scripts/visual-test.sh) launches the real compositor and a browser placeholder, not the host desktop. The full intended behavior is in [the design](docs/design/sidebar.md); the [prototype plan](docs/plans/prototype.md) names its limits.
