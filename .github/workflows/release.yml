@@ -65,7 +65,7 @@ jobs:
           bash packaging/homebrew/render.sh "${GITHUB_REF_NAME#v}" "$tarball_sha" dist/sidescope.rb
           (cd dist && sha256sum "$name.tar.gz" *.whl sidescope.rb > SHA256SUMS)
       - name: Publish GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           draft: true
           generate_release_notes: true
