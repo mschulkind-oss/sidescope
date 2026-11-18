@@ -15,13 +15,13 @@ vantage:
 ## Before a public push
 
 - [x] Choose a durable project/repository name — settled as **Sidescope** (`sidescope`, `org.mschulkind.Sidescope`) in [OQ-SS4](./NAME_CANDIDATES.md#OQ-SS4).
-- [ ] Accept the [standalone-app design](./design/sidebar.md) after visual and data-source review; validate the proposed Rust/GTK4 stack before writing the implementation plan and build layout.
-- [ ] Confirm the existing Apache-2.0 license matches the maintainer's canonical portfolio copy. Review the current `README`, repo-specific agent guidance and project-relevant ignore patterns before publishing.
-- [ ] Verify `just doctor`, `just build` and `just dev` against the maintainer's actual host GTK/libadwaita packages; then verify the Nix development shell, toolchain pinning, `Justfile`, CI and weekly dependency updates on a fresh checkout. The tool pin in `mise.toml` targets tested `just` 1.58.0; verify it and the Nix-provided `just` on a fresh checkout.
-- [ ] Keep contributor-facing documentation in the public tree. Put personal research, private account details and workstation-specific config in private side storage rather than in public commits.
-- [ ] If a contributor jail config is needed, commit only generic package requirements; put personal mounts, devices, ports and secrets in gitignored `yolo-jail.local.toml` and run `yolo check` on any config edits.
-- [ ] Before the **first public push**, audit the **entire git history**, tree and fixtures for credentials, personal identifiers, private infrastructure names and local paths; decide whether to squash unpublished exploratory history. Do not rewrite public history after publication. Take a backup bundle before destructive cleanup and repeat the scan after changes.
-- [ ] On the host, create the repository under `mschulkind-oss`, add the remote and push only after that audit. Confirm it is included in the maintainer's standards/license coverage on the maintainer's host. Do not treat a local commit as publication.
+- [x] Accept the [standalone-app design](./design/sidebar.md) after visual and data-source review; validate the proposed Rust/GTK4 stack before writing the implementation plan and build layout.
+- [x] Confirm the existing Apache-2.0 license matches the maintainer's canonical portfolio copy. Review the current `README`, repo-specific agent guidance and project-relevant ignore patterns before publishing.
+- [x] Verify `just doctor`, `just build` and `just dev` against the maintainer's actual host GTK/libadwaita packages; then verify the Nix development shell, toolchain pinning, `Justfile`, CI and weekly dependency updates on a fresh checkout. The tool pin in `mise.toml` targets tested `just` 1.58.0; verify it and the Nix-provided `just` on a fresh checkout.
+- [x] Keep contributor-facing documentation in the public tree. Put personal research, private account details and workstation-specific config in private side storage rather than in public commits.
+- [x] If a contributor jail config is needed, commit only generic package requirements; put personal mounts, devices, ports and secrets in gitignored `yolo-jail.local.toml` and run `yolo check` on any config edits.
+- [x] Before the **first public push**, audit the **entire git history**, tree and fixtures for credentials, personal identifiers, private infrastructure names and local paths; decide whether to squash unpublished exploratory history. Do not rewrite public history after publication. Take a backup bundle before destructive cleanup and repeat the scan after changes.
+- [x] On the host, create the repository under `mschulkind-oss`, add the remote and push only after that audit. Confirm it is included in the maintainer's standards/license coverage on the maintainer's host. Do not treat a local commit as publication.
 
 ## Before a usable release
 

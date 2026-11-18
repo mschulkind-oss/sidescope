@@ -6,18 +6,57 @@ Live data work stays off the GTK thread. Demo data is synthetic and deterministi
 
 ## Install
 
-> **Distribution deviation.** This is a Linux-only, Wayland-only GTK application: there is no Homebrew formula, no `cargo install` path (it is not published to crates.io) and no Flatpak. The two supported channels are the published release tarball and a source build. Nothing here is a supported cross-distribution package.
+Sidescope is a native Linux application for Wayland compositors (such as Sway). Several installation paths are available depending on your environment:
+
+### Nix Flake
+
+The Nix flake bundles GTK4 and libadwaita runtime libraries in their tested versions, requiring no system-level package installation:
+
+```bash
+nix run github:mschulkind-oss/sidescope
+```
+
+### Python / uvx launcher
+
+Launch via `uvx` with an automatic runtime environment preflight:
+
+```bash
+# Verify your system GTK4 / libadwaita libraries:
+uvx sidescope doctor
+
+# Launch the dashboard:
+uvx sidescope --live
+```
+
+If required runtime libraries (`libgtk-4-1`, `libadwaita-1-0`) are missing, `uvx sidescope doctor` reports them alongside the exact distro install command.
+
+### Homebrew (Linux)
+
+Install via Homebrew on Linux using system GTK4 and libadwaita:
+
+```bash
+brew install mschulkind-oss/tap/sidescope
+```
+
+*(Or download `sidescope.rb` from the GitHub release assets.)*
+
+### Cargo (crates.io)
+
+```bash
+cargo install --locked sidescope
+```
+
+Requires GTK4 and libadwaita development packages installed on your system (e.g. `libgtk-4-dev` and `libadwaita-1-dev` on Ubuntu/Debian).
 
 ### Release tarball
 
 Download `sidescope-<tag>-ubuntu24.04-x86_64.tar.gz` from [Releases](https://github.com/mschulkind-oss/sidescope/releases), then unpack it anywhere on your `PATH`. The archive carries the binary, this README, the license and `INSTALL.txt`.
 
-Runtime requirements, which the tarball does **not** bundle:
-
+Runtime requirements for the tarball:
 - Linux x86_64 on a Wayland compositor (Sway is what is tested)
 - GTK4 and libadwaita runtime libraries — Ubuntu: `libgtk-4-1 libadwaita-1-0`
 - `ai-usagebar` on `PATH` for live usage data; without it the app runs on synthetic sample data
-- `curl` for the configured weather and air-quality cards
+- `curl` for configured weather and air-quality cards
 
 ### From source
 
