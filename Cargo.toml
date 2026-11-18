@@ -3,6 +3,25 @@ name = "sidescope"
 version = "0.1.0"
 edition = "2024"
 license = "Apache-2.0"
+description = "Native Wayland status column for AI usage, system telemetry, and weather"
+repository = "https://github.com/mschulkind-oss/sidescope"
+homepage = "https://github.com/mschulkind-oss/sidescope"
+readme = "README.md"
+keywords = ["wayland", "gtk4", "dashboard", "status", "sway"]
+categories = ["gui"]
+exclude = [
+    "docs/",
+    "packaging/",
+    "screenshots/",
+    "scripts/",
+    "AGENTS.md",
+    "Justfile",
+    "config.example.toml",
+    "flake.lock",
+    "flake.nix",
+    "mise.toml",
+    "roadmap.md",
+]
 
 [dependencies]
 gtk = { package = "gtk4", version = "0.11" }

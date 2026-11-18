@@ -12,3 +12,25 @@ jobs:
         run: nix develop --command just check-ci
       - name: Real headless Wayland visual smoke test
         run: nix develop --command just test-visual
+
+  packaging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+      - name: Nix package build
+        run: nix build --no-link
+      - name: Cargo crate packaging check
+        run: nix develop --command cargo package --locked --no-verify
+      - name: Python uvx launcher and doctor tests
+        run: python3 -m unittest discover -s packaging/uvx/tests -v
+      - name: Python uvx wheel build check
+        run: |
+          python3 -m pip install --upgrade pip build
+          python3 -m build --wheel --outdir dist-uvx packaging/uvx
+      - name: Homebrew formula syntax and render check
+        run: |
+          ruby -c packaging/homebrew/sidescope.rb
+          rendered=$(mktemp)
+          bash packaging/homebrew/render.sh 0.1.0 0000000000000000000000000000000000000000000000000000000000000000 "$rendered"
+          ruby -c "$rendered"
