@@ -1112,3 +1112,101 @@ fn next_wake_reports_the_earliest_due_source() {
     }
     assert_eq!(scheduler.next_wake(), Some(secs(40)));
 }
+
+/// A command that writes its diagnostic, then proves it did by creating a
+/// marker, then hangs. The marker is created only after the write returned, so
+/// its existence shows the bytes were in the pipe before any termination.
+fn diagnostic_then_hang(marker: &str) -> std::process::Command {
+    let mut command = std::process::Command::new("/bin/sh");
+    command.args([
+        "-c",
+        "echo late-diagnostic >&2; : > \"$1\"; exec sleep 30",
+        "sh",
+        marker,
+    ]);
+    command
+}
+
+fn stderr_limits(timeout: Duration) -> sidescope::process::CaptureLimits {
+    sidescope::process::CaptureLimits {
+        stdout: 1 << 20,
+        stderr: 8192,
+        timeout,
+    }
+}
+
+#[test]
+fn stderr_written_before_cancellation_is_kept_once_the_group_is_stopped() {
+    use sidescope::process::{CancelToken, RunFailure, run_with_stderr};
+    let scratch = Scratch::new("stderr-cancel");
+    // Cancelling the instant the marker appears races the runner's polling
+    // pass; repeating makes losing the buffered bytes the overwhelmingly
+    // likely outcome without the final drain, and impossible with it.
+    for round in 0..25 {
+        let marker = scratch.file(&format!("written-{round}"));
+        let token = CancelToken::new();
+        let worker_token = token.clone();
+        let worker_marker = marker.clone();
+        let worker = std::thread::spawn(move || {
+            let mut bytes = Vec::new();
+            let result = run_with_stderr(
+                &mut diagnostic_then_hang(&worker_marker),
+                &stderr_limits(Duration::from_secs(20)),
+                &worker_token,
+                &mut bytes,
+            );
+            (result, bytes)
+        });
+        assert!(
+            wait_until(Duration::from_secs(5), || Path::new(&marker).exists()),
+            "the command never wrote"
+        );
+        token.cancel();
+        let (result, bytes) = worker.join().unwrap();
+        assert!(matches!(result, Err(RunFailure::Cancelled)), "{result:?}");
+        assert_eq!(
+            String::from_utf8_lossy(&bytes).trim(),
+            "late-diagnostic",
+            "round {round}: bytes written before termination were lost"
+        );
+    }
+}
+
+#[test]
+fn stderr_written_just_before_a_timeout_is_kept_and_the_wait_stays_bounded() {
+    use sidescope::process::{CancelToken, RunFailure, run_with_stderr};
+    let scratch = Scratch::new("stderr-timeout");
+    // The command writes within the last polling interval before a 300 ms
+    // deadline, the window the review found losing bytes at ~0.997 s of 1 s.
+    for round in 0..10 {
+        let marker = scratch.file(&format!("written-{round}"));
+        let mut command = std::process::Command::new("/bin/sh");
+        command.args([
+            "-c",
+            "sleep 0.285; echo late-diagnostic >&2; : > \"$1\"; exec sleep 30",
+            "sh",
+            &marker,
+        ]);
+        let mut bytes = Vec::new();
+        let started = Instant::now();
+        let result = run_with_stderr(
+            &mut command,
+            &stderr_limits(Duration::from_millis(300)),
+            &CancelToken::new(),
+            &mut bytes,
+        );
+        assert!(matches!(result, Err(RunFailure::Timeout)), "{result:?}");
+        let wrote = Path::new(&marker).exists();
+        assert!(
+            started.elapsed() < Duration::from_secs(3),
+            "no unbounded wait after the deadline"
+        );
+        if wrote {
+            assert_eq!(
+                String::from_utf8_lossy(&bytes).trim(),
+                "late-diagnostic",
+                "round {round}: bytes written before termination were lost"
+            );
+        }
+    }
+}

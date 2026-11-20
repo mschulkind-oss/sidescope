@@ -133,6 +133,21 @@ fn drain_pipe(pipe: &mut impl Read, keep: &mut Vec<u8>, limit: usize) {
     }
 }
 
+/// Stops the whole owned group, then reads what is already buffered in the
+/// stderr pipe without waiting: writers are gone, so the read is nonblocking
+/// and bounded by the keep limit and the per-pass cap.
+fn stop_and_collect(
+    process: &mut SourceProcess,
+    stderr: Option<&mut impl Read>,
+    keep: &mut Vec<u8>,
+    limit: usize,
+) {
+    process.terminate();
+    if let Some(pipe) = stderr {
+        drain_pipe(pipe, keep, limit);
+    }
+}
+
 fn set_nonblocking(fd: i32) -> bool {
     let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
     flags >= 0 && unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } >= 0
@@ -203,9 +218,11 @@ pub fn run_with_stderr(
     let mut buffer = [0u8; 8192];
     loop {
         if cancel.is_cancelled() {
+            stop_and_collect(&mut process, stderr.as_mut(), stderr_bytes, limits.stderr);
             return Err(RunFailure::Cancelled);
         }
         if start.elapsed() >= limits.timeout {
+            stop_and_collect(&mut process, stderr.as_mut(), stderr_bytes, limits.stderr);
             return Err(RunFailure::Timeout);
         }
         let status = process.status().map_err(|_| RunFailure::SpawnFailed)?;

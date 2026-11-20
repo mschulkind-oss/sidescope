@@ -381,3 +381,90 @@ fn signed_input_cells_suppress_ranked_shares_even_when_net_totals_are_positive()
         "no share note without shares"
     );
 }
+
+fn ranked_rows(model: &ChartCardModel) -> usize {
+    match model.plot() {
+        PlotModel::Ranked { rows, .. } => rows.len(),
+        _ => 0,
+    }
+}
+
+#[test]
+fn seventeen_unknown_tuples_refuse_a_ranked_plot_and_keep_every_detail_row() {
+    let models: Vec<String> = (0..17).map(|i| format!("model-{i:02}")).collect();
+    let series: Vec<Row> = models
+        .iter()
+        .map(|name| {
+            (
+                vec![("project", ""), ("model", name.as_str())],
+                vec![Some("1"), Some("2")],
+            )
+        })
+        .collect();
+    let card = card(ChartKind::RankedBars, "amount", &["project", "model"]);
+    let model = model(&card, &json_of(&USD, &TWO, &series));
+    let message = model.message().unwrap_or_default();
+    assert!(
+        message.contains("Unknown") && message.contains("17"),
+        "{message:?}"
+    );
+    assert!(matches!(model.plot(), PlotModel::Empty));
+    assert_eq!(
+        model.table_rows().len(),
+        17,
+        "full ranking stays in Details"
+    );
+}
+
+#[test]
+fn ranked_plots_never_show_more_than_sixteen_rows_and_keep_the_full_ranking() {
+    let names: Vec<String> = (0..20).map(|i| format!("m{i:02}")).collect();
+    let named: Vec<Row> = names
+        .iter()
+        .map(|name| (vec![("model", name.as_str())], vec![Some("1"), Some("2")]))
+        .collect();
+    // (unknown groups, named groups, top_n)
+    for (unknown, named_count, top_n) in [
+        (0, 17, 16),
+        (0, 20, 16),
+        (10, 20, 16),
+        (15, 5, 16),
+        (15, 20, 5),
+        (3, 14, 16),
+    ] {
+        let unknown_names: Vec<String> = (0..unknown).map(|i| format!("u{i:02}")).collect();
+        let mut series: Vec<Row> = named[..named_count].to_vec();
+        for name in &unknown_names {
+            series.push((
+                vec![("model", ""), ("team", name.as_str())],
+                vec![Some("1"), Some("1")],
+            ));
+        }
+        let with_team: Vec<Row> = series
+            .into_iter()
+            .map(|(mut dims, values)| {
+                if dims.len() == 1 {
+                    dims.push(("team", "x"));
+                }
+                (dims, values)
+            })
+            .collect();
+        let mut card = card(ChartKind::RankedBars, "amount", &["model", "team"]);
+        card.top_n = Some(top_n);
+        let model = model(&card, &json_of(&USD, &TWO, &with_team));
+        let shown = ranked_rows(&model);
+        assert!(
+            shown <= 16,
+            "{unknown} unknown + {named_count} named, top {top_n}: {shown} rows"
+        );
+        assert!(
+            shown > 0 || model.message().is_some(),
+            "{unknown}/{named_count}: neither rows nor a refusal"
+        );
+        assert_eq!(
+            model.table_rows().len(),
+            unknown + named_count,
+            "Details keeps every group"
+        );
+    }
+}

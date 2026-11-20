@@ -74,3 +74,16 @@ Results: `just format` then `just check-ci` exit 0 (lib 89, bin 30, foundation 4
 The first-full-run visual failure remains **unproven**: the earlier green runs only show it is not deterministic, and the key-resend hardening is a mitigation, not a proven fix.
 
 Next gate: a second independent review of this repair commit. This record is not a graduation of the charts documents.
+
+## Verification round: two repairs found partial
+
+An independent verification of the repair commit resolved twelve findings and blocked two that had been only partly repaired. Both are corrected here; the table above overstated them.
+
+- **Ranked capacity (P1).** The first repair budgeted time series and time bars only. A ranked card with 17 distinct Unknown tuples drew 17 rows with no refusal, and 17 ordinary groups with `top_n = 16` drew 16 named rows plus Other. Red, on the previous commit: `cargo test --test chart_view_repair` failed 2 of 11 (`seventeen_unknown_tuples_refuse_a_ranked_plot_and_keep_every_detail_row`: empty message; `ranked_plots_never_show_more_than_sixteen_rows_and_keep_the_full_ranking`: "0 unknown + 17 named, top 16: 17 rows"). Fix: the ranked named limit is the smaller of `top_n` and the checked remaining capacity (one slot for Other, one per Unknown group); Unknown groups alone beyond the plot refuse visibly, and the full ranking stays in Details. Green: 11 of 11, and the 41 existing view tests unchanged.
+- **Buffered opt-in stderr at timeout and cancellation (P2).** The first repair drained stderr only on success and nonzero exit. Bytes written in the last polling interval before a deadline, or before a cancellation, were lost. Red, on the previous commit: `cargo test --test chart_runtime stderr_written` failed 2 of 2 (cancellation round 0 and timeout round 0 returned empty stderr although a marker file, created only after the write returned, proved the bytes were in the pipe first). Fix: on cancellation and timeout the owned process group is stopped and reaped as before, then the already-buffered stderr is read once under the existing size and per-pass bounds; nothing waits after the deadline. Default runs still discard stderr (`capture_stderr` opts in). Green: `chart_runtime` 41 of 41 (39 before plus these 2), the five existing `process::` tests unchanged.
+
+The tests prove the write preceded termination through the marker rather than a sleep, and repeat (25 cancellation rounds, 10 timeout rounds) because the pre-fix race is probabilistic; with the fix the outcome is deterministic.
+
+Still true: the first full-run visual failure is unproven (green reruns do not establish its cause); host-live collector behavior, screen-reader text, other compositors and a wall-clock midnight run are unverified; the midnight deferral and original stderr-on-failure tests had no historical red run. Next gate: parent verification of these two corrections. No graduation of the charts documents.
+
+Final results for this round: `just format` then `just check-ci` exit 0 (lib 89, bin 30, foundation 41, integration 4, mapping 33, runtime 41, view 41, view-repair 11, cli 8, shell suites). The chart-only compositor suite exited 0; the many-series ranking capture (five rows plus Other for 20 groups) is unchanged at 640 px.

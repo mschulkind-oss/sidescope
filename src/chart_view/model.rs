@@ -1009,7 +1009,13 @@ fn build_ranked(
         return Err(too_many(groups.len()));
     }
     let top_n = card.top_n.map_or(DEFAULT_TOP_N, usize::from);
-    let ranking: Ranking = rank(groups.clone(), summary, Some(top_n))?;
+    // Every visible row, Other and Unknown included, must fit the plot: the
+    // named limit reserves a slot for Other and for each Unknown group.
+    let (limit, refusal) = match named_limit(&groups) {
+        Ok(capacity) => (capacity.map_or(top_n, |capacity| capacity.min(top_n)), None),
+        Err(message) => (top_n, Some(message)),
+    };
+    let ranking: Ranking = rank(groups.clone(), summary, Some(limit))?;
     let negative = has_negative(&groups);
     let pseudo: Vec<Cell> = ranking
         .shown
@@ -1092,6 +1098,13 @@ fn build_ranked(
             ]
         })
         .collect();
+    if let Some(message) = refusal {
+        return Ok(Built {
+            message: Some(message),
+            rows: table_rows,
+            ..Built::default()
+        });
+    }
     let readouts = rows
         .iter()
         .zip(&ranking.shown)
