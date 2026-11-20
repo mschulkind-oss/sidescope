@@ -101,8 +101,8 @@ pub fn css(theme: &Theme) -> String {
 .chart-card .chart-banner {{ background: {header}; color: {warning}; border-radius: 4px; padding: 2px 6px; }}
 .chart-card .chart-message {{ color: {muted}; padding: 8px 0; }}
 .chart-card .chart-plot:focus {{ outline: 2px solid {good}; outline-offset: 1px; }}
-.chart-card .chart-table {{ font-family: monospace; background: {card}; color: {body}; }}
-.chart-card .chart-info {{ color: {body}; }}
+.chart-card-popover .chart-table, .chart-card-popover .chart-table text {{ font-family: monospace; background: {card}; color: {body}; }}
+.chart-card-popover .chart-info {{ color: {body}; }}
 .chart-card .chart-action {{ background: {header}; color: {body}; min-height: 22px; padding: 1px 8px; }}
 "#,
         title = c(theme.title),

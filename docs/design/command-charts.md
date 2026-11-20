@@ -3,7 +3,7 @@ title: "Reusable charts driven by local commands"
 date: 2026-11-20
 status: accepted
 stage: DECIDED
-next: "Build per the implementation plan, starting with the foundation stage"
+next: "Independent combined review (T6) of the integrated range; host-live verification with the owner's real collector remains unverified"
 tags: [design, charts, extensibility]
 summary: "Generic native charts, bounded CLI execution, and an example usage-cost dashboard without an agent-activity dependency."
 vantage:
@@ -12,7 +12,7 @@ vantage:
 
 # Reusable charts driven by local commands
 
-**Status:** 2026-11-20. Accepted; no chart-source implementation yet and no live account measurements. Grounded in Sidescope at `59d5f37` and the mounted agent-activity checkout at `bcdbf46`.
+**Status:** 2026-11-20. Accepted and implemented behind opt-in configuration, verified with synthetic commands only (see the [QA record](../qa/command-charts.md)); no live account measurements. Grounded in Sidescope at `59d5f37` and the mounted agent-activity checkout at `bcdbf46`.
 
 > **In short.** Teach Sidescope to plot measurements from local commands, not to understand an agent-activity database. Keep command execution, data normalization, and chart presentation separate so the same widgets can show spending, build times, traffic, or power consumption.
 
@@ -24,7 +24,7 @@ vantage:
 
 **Needs your ruling:** None. The owner approved implementation on 2026-11-20.
 
-**Reads with:** [product design](sidebar.md), [implementation plan](command-charts-plan.md), [research](../research/command-charts.md), [roadmap](../../roadmap.md).
+**Reads with:** [product design](sidebar.md), [implementation plan](command-charts-plan.md), [tasks](../tasks/command-charts.md), [QA record](../qa/command-charts.md), [research](../research/command-charts.md), [agent-activity requests](../requests/agent-activity-charts.md), [roadmap](../../roadmap.md).
 
 ---
 

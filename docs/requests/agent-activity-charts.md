@@ -80,7 +80,7 @@ Synthetic and generic; none requires Sidescope.
 
 ```json
 {
-  "range": {"from": "2026-11-20T09:00:00.000Z", "to": "2026-11-20T12:03:00.000Z", "source": "explicit",
+  "range": {"from": "2026-11-20T09:01:00.000Z", "to": "2026-11-20T12:03:00.000Z", "source": "explicit",
             "requested": {"from": "2026-11-20T09:01:30.000Z", "to": "2026-11-20T12:02:10.000Z"}},
   "buckets": [
     {"start": "2026-11-20T12:02:00.000Z", "end": "2026-11-20T12:03:00.000Z", "state": "open"}
@@ -88,7 +88,7 @@ Synthetic and generic; none requires Sidescope.
 }
 ```
 
-`state` would be `closed` (default when absent), `open` (ends after `generatedAt`), or `provisional` (older, but the source says it may still change). Absent means "unknown, treat as closed"; it must not be read as a promise.
+Minute buckets align the requested start down to `09:01:00` and the requested end up to `12:03:00`; `requested` keeps the literal instants so a consumer can see exactly what was widened. `state` would be `open` (ends after `generatedAt`), `provisional` (older, but the source says it may still change) or `closed` (the producer asserts the bucket is final). **Absent means unknown.** A consumer must not read an absent `state` as `closed` or as finalized data, and a producer that cannot tell omits it.
 
 ### R2. Collection freshness separate from answer generation
 
@@ -99,11 +99,11 @@ Synthetic and generic; none requires Sidescope.
 ```json
 {
   "generatedAt": "2026-11-20T12:02:10.000Z",
-  "collection": {"observedThrough": "2026-11-20T12:01:55.000Z", "basis": "last-commit"}
+  "collection": {"observedThrough": null, "lastCommitAt": "2026-11-20T12:01:55.000Z", "basis": "last-commit"}
 }
 ```
 
-`observedThrough` is the instant through which the producer asserts collection, or `null` when it cannot say. `basis` is a short producer-defined string. **Null is a legitimate answer and means unknown, not current.** A consumer must never treat an unchanged `generation` as proof of failure.
+`observedThrough` is the instant through which the producer **explicitly asserts** collection, or `null` when it cannot say. A last commit or scan time is not by itself a coverage watermark: nothing guarantees that every event before it was collected, so `lastCommitAt` (or a scan time) is reported separately as freshness metadata and must not be copied into `observedThrough` unless the producer can assert the boundary. `basis` is a short producer-defined string naming what `observedThrough` rests on, and is omitted when it is `null`. **Null is a legitimate answer and means unknown, not current**, even while `lastCommitAt` is present. A consumer must never treat an unchanged `generation` as proof of failure.
 
 ### R3. Capability and metric descriptors
 
@@ -120,7 +120,7 @@ Synthetic and generic; none requires Sidescope.
     "dimensions": ["model", "workspace", "role", "harness", "channel"],
     "limits": {"buckets": 400, "values": 60000, "groupDimensions": 3},
     "columnsOmitAllZero": true,
-    "decimal": {"format": "plain", "maxFractionDigits": 4}
+    "decimal": {"format": "plain", "maxFractionDigits": 12}
   },
   "metrics": {
     "knownCostUSD": {"unit": "USD", "quantity": "interval_total", "estimate": true,
@@ -180,9 +180,9 @@ agent-activity ledger series --format json --layout columns --bucket minute \
 
 ## 6. Backwards compatibility
 
-- Every request adds optional fields, optional flags, or a new command. No existing field changes meaning, type, or name.
+- Every request adds optional fields, optional flags, or a new command. No existing field changes meaning, type, or name. `maxFractionDigits` is 12 because USD amounts are formatted from pico-dollar fractions with trailing zeros trimmed.
 - Readers already ignore unknown JSON fields; this FR relies on that and on nothing else.
-- Default output (`--format table`, current JSON, current flags) must stay byte-identical for an unchanged query. A golden test should pin this.
+- The new fields (`range.requested`, bucket `state`, `collection`, `capabilities`, `metrics`) are opt-in metadata: they appear only when the caller asks for them with a new flag or command (the maintainer chooses its name). Output for current flags, including `--format table` and current JSON, stays byte-identical for an unchanged query, and a golden test should pin that. If the maintainer prefers to emit them by default, the promise is weaker: existing fields keep their meaning and type, and only additions appear.
 - A new descriptor must report only what is true. Where `agent-activity` cannot say (for example freshness), the answer is `null`, never a guessed value.
 - The existing CLI and HTTP routes share one query path today, and the documented rule "`--format json` prints the same body for the same query" should continue to hold for new fields.
 
@@ -199,8 +199,8 @@ Criteria are per request. Each applies only if the maintainer chooses to deliver
 
 | Request | Accepted when |
 | :--- | :--- |
-| R1 | An answer for an explicit `--from`/`--to` includes `range.requested` equal to the literal instants parsed from the flags; the open bucket at the right edge has `state: "open"`; a query wholly in the past has no `open` bucket; omitting the new fields leaves current output unchanged |
-| R2 | `collection.observedThrough` is an RFC 3339 instant no later than `generatedAt`, or `null`; with the collector stopped it does not advance across two queries; it is `null` when the producer cannot determine it |
+| R1 | An answer for an explicit `--from`/`--to` includes `range.requested` equal to the literal instants parsed from the flags; the open bucket at the right edge has `state: "open"`; a query wholly in the past has no `open` bucket; without the opt-in flag current output is byte-identical; the minute-aligned example above widens `09:01:30` to `09:01:00` and reports both |
+| R2 | `collection.observedThrough` is an RFC 3339 instant no later than `generatedAt`, or `null`; with the collector stopped it does not advance across two queries; it is `null` when the producer cannot determine it, and is never filled from `lastCommitAt` alone |
 | R3 | The descriptor lists every column the `columns` layout can emit, each with `unit`, `quantity`, `estimate`; each cost column names its `unpriced` counterpart; limits match the refusals actually enforced (400, 60,000, three dimensions) |
 | R4 | Each named fixture is committed, parses as the documented contract, contains no real path or account data, and has a test that regenerates or validates it; the DST fixture shows 23-hour and 25-hour buckets |
 | R5 | `--group-by none` and each new filter work with both layouts; filtered and total sums equal the grouped sums over the same fixture; the existing default grouping is unchanged; `--group-by` empty is still the default |

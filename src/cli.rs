@@ -97,6 +97,23 @@ CONFIGURATION:
       {{ chip = \"coretemp\", device = \"/sys/devices/platform/coretemp.0\", channel = \"temp1\", label = \"CPU package\" }}
     ]
 
+  [[chart_sources]]         Optional owner-authored command that prints chart data (repeatable)
+    id = \"example-metrics\"
+    command = [\"example-chart-data\", \"--from\", \"{{from}}\", \"--to\", \"{{to}}\", \"--timezone\", \"{{timezone}}\"]
+                            One argv, no shell. Each {{from}}, {{to}}, {{timezone}} must be a whole argument.
+                            Commands run with this app's authority and are not sandboxed.
+    format = \"sidescope-chart-v1\"  or \"columns-v1\" (requires a [chart_sources.mapping] table)
+    window = \"3h\"          Whole-minute duration up to 30d; or calendar_days = 5 (1-400); not both
+    timezone = \"UTC\"       IANA zone; defines calendar days and axis labels
+    refresh_seconds = 30     5 or more; timeout_seconds = 10 (1-60); stale_after_seconds >= 2x refresh
+    capture_stderr = false   Keep a sanitized 8 KiB stderr excerpt in Info
+
+  [[chart_cards]]           A card drawn from a source's answer (repeatable)
+    id = \"example-card\"    Unique; source = \"example-metrics\"; metric = \"spend\"
+    kind = \"time-series\"   or \"time-bars\" or \"ranked-bars\"
+    title, summary, group_by = [..], top_n = 1..16, stack_by = \"dim\", bounded_percent = true
+  Chart cards appear below the other cards in live mode only; see docs/guide.md.
+
   [weather]                 Optional explicit location (no IP/GPS lookup; requires curl)
     latitude = 0.0
     longitude = 0.0
@@ -123,6 +140,36 @@ pub fn find_in_path(binary: &str) -> Option<std::path::PathBuf> {
     None
 }
 
+fn chart_doctor_lines(config: &crate::AppConfig, lines: &mut Vec<String>) {
+    if config.chart_sources.is_empty() {
+        return;
+    }
+    for source in &config.chart_sources {
+        let executable = source.executable();
+        let found = if executable.contains('/') {
+            Path::new(executable).is_file()
+        } else {
+            find_in_path(executable).is_some()
+        };
+        let status = if found { "ok      " } else { "warn    " };
+        lines.push(format!(
+            "  {status} chart source  {}  {}",
+            source.id,
+            source.command.join(" ")
+        ));
+        if !found {
+            lines.push(format!(
+                "           chart source  {} executable {executable} was not found",
+                source.id
+            ));
+        }
+    }
+    lines.push(
+        "  note     chart source  commands run with this app's authority and are not sandboxed"
+            .into(),
+    );
+}
+
 pub fn run_doctor() -> (String, bool) {
     let mut lines = vec!["Sidescope doctor:".to_string()];
     let mut all_ok = true;
@@ -131,10 +178,13 @@ pub fn run_doctor() -> (String, bool) {
         Ok(path) => {
             if path.exists() {
                 match crate::load_config_at(&path) {
-                    Ok(_) => lines.push(format!(
-                        "  ok       config        {} (valid)",
-                        path.display()
-                    )),
+                    Ok(config) => {
+                        lines.push(format!(
+                            "  ok       config        {} (valid)",
+                            path.display()
+                        ));
+                        chart_doctor_lines(&config, &mut lines);
+                    }
                     Err(err) => {
                         all_ok = false;
                         lines.push(format!(
@@ -277,5 +327,14 @@ mod tests {
         assert!(help.contains("[weather]"));
         assert!(help.contains("[sensors]"));
         assert!(help.contains("sidescope doctor"));
+        for needle in [
+            "[[chart_sources]]",
+            "[[chart_cards]]",
+            "sidescope-chart-v1",
+            "columns-v1",
+            "this app's authority",
+        ] {
+            assert!(help.contains(needle), "help is missing {needle}");
+        }
     }
 }

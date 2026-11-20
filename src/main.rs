@@ -2,13 +2,17 @@ use adw::prelude::*;
 use glib::translate::{ToGlibPtr, ToGlibPtrMut};
 use gtk::glib;
 use sidescope::{
-    AppConfig, Card, CardMetric, CardState, Graph, Pace,
+    AppConfig, Card, CardMetric, CardState, Graph, Pace, chart_mapping,
+    chart_runtime::ChartRuntime,
     cli::{Command, LaunchMode, find_in_path, help_text, parse_args, run_doctor},
     config_path, dashboard,
     density::{self, Density},
     load_config_at, pace_context, pack_columns, plot, process, sensors, theme, visible_cards,
     weather,
 };
+mod chart_host;
+
+use chart_host::ChartEntry;
 use std::sync::mpsc;
 use std::time::Duration;
 use std::{cell::RefCell, rc::Rc};
@@ -619,7 +623,23 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
     window.add_controller(keys);
     refresh.set_visible(!demo);
 
+    let chart_runtime: Rc<RefCell<Option<ChartRuntime>>> = Rc::new(RefCell::new(
+        chart_host::starts_chart_runtime(demo, &config.chart_sources)
+            .then(|| ChartRuntime::start(&config.chart_sources, chart_mapping::normalize_output)),
+    ));
+    let chart_scenario =
+        demo && std::env::var("SIDESCOPE_VISUAL_SCENARIO").is_ok_and(|s| s.starts_with("charts-"));
+    if chart_runtime.borrow().is_some() || chart_scenario {
+        chart_host::install_css(active_theme());
+    }
     let data = Rc::new(RefCell::new(DashboardData {
+        charts: chart_runtime
+            .borrow()
+            .as_ref()
+            .map(|runtime| {
+                chart_host::entries_from_snapshots(&config.chart_cards, &runtime.snapshots())
+            })
+            .unwrap_or_default(),
         providers: if demo {
             visible_cards(initial, config).expect("validated initial report")
         } else if config.enabled.as_deref() != Some(&[]) && find_in_path("ai-usagebar").is_none() {
@@ -718,6 +738,53 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
         });
     }
 
+    if chart_runtime.borrow().is_some() {
+        let (runtime, data) = (chart_runtime.clone(), data.clone());
+        let (wide, narrow) = (wide_stack.clone(), narrow_stack.clone());
+        let mut ticks = 0u32;
+        // A terminated stripe must stop every chart command it started: the
+        // handler only sets a flag, and the poll below quits through GTK so the
+        // shutdown hook below runs.
+        install_termination_flag();
+        let quit_app = app.clone();
+        glib::timeout_add_local(Duration::from_millis(200), move || {
+            if TERMINATION_REQUESTED.load(std::sync::atomic::Ordering::Relaxed) {
+                quit_app.quit();
+                return glib::ControlFlow::Break;
+            }
+            ticks = ticks.wrapping_add(1);
+            let Some(changed) = runtime.borrow().as_ref().map(ChartRuntime::poll) else {
+                return glib::ControlFlow::Break;
+            };
+            // Every 5 s the cards are re-evaluated so freshness labels advance.
+            if std::env::var_os("SIDESCOPE_VISUAL_GEOMETRY").is_some() {
+                for snapshot in &changed {
+                    eprintln!(
+                        "CHART_SOURCE id={} dataset={} error={}",
+                        snapshot.source_id,
+                        snapshot.dataset.is_some(),
+                        snapshot
+                            .last_error
+                            .as_ref()
+                            .map_or("none", |error| error.kind.label())
+                    );
+                }
+            }
+            if !changed.is_empty() || ticks.is_multiple_of(25) {
+                chart_host::apply_snapshots(&mut data.borrow_mut().charts, &changed);
+                let data = data.borrow();
+                sync_chart_section(&wide, true, &data);
+                sync_chart_section(&narrow, false, &data);
+            }
+            glib::ControlFlow::Continue
+        });
+        let runtime = chart_runtime.clone();
+        app.connect_shutdown(move |_| {
+            if let Some(runtime) = runtime.borrow_mut().take() {
+                runtime.shutdown();
+            }
+        });
+    }
     if !demo {
         start_local_sampling(&window, &wide_stack, &narrow_stack, &data, &config.sensors);
         if let Some(location) = &config.weather {
@@ -743,7 +810,18 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
         let config = config.clone();
         let data = data.clone();
         let check_status = check_status.clone();
+        let timer_click = Rc::new(std::cell::Cell::new(false));
+        let chart_refresh = chart_runtime.clone();
+        let manual = timer_click.clone();
+        let sources: Vec<String> = config.chart_sources.iter().map(|s| s.id.clone()).collect();
         refresh.connect_clicked(move |button| {
+            if !manual.get()
+                && let Some(runtime) = chart_refresh.borrow().as_ref()
+            {
+                for id in &sources {
+                    runtime.refresh_now(id);
+                }
+            }
             if config.enabled.as_deref() == Some(&[]) {
                 data.borrow_mut().providers.clear();
                 data.borrow_mut().error = None;
@@ -819,7 +897,9 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
             match weak_refresh.upgrade() {
                 Some(button) => {
                     if allow_refresh(false, button.is_sensitive()) {
+                        timer_click.set(true);
                         button.emit_clicked();
+                        timer_click.set(false);
                     }
                     glib::ControlFlow::Continue
                 }
@@ -908,6 +988,9 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
         )
     {
         test_details_across_local_updates(&window, &wide_stack, &narrow_stack, &data);
+    }
+    if demo && std::env::var("SIDESCOPE_VISUAL_SCENARIO").as_deref() == Ok("charts-details") {
+        test_chart_details_across_updates(&wide_stack, &narrow_stack, &data);
     }
     if demo
         && std::env::var("SIDESCOPE_VISUAL_SCENARIO")
@@ -1212,6 +1295,7 @@ fn test_fit_geometry(
 fn select_theme(index: usize, css: &gtk::CssProvider, outer: &gtk::Box, selector: &gtk::Box) {
     ACTIVE_THEME.set(index);
     css.load_from_data(&theme::css(active_theme()));
+    chart_host::reload_css(active_theme());
     if let Some(label) = find_widget(&selector.clone().upcast(), "theme-name")
         .and_then(|w| w.downcast::<gtk::MenuButton>().ok())
     {
@@ -1367,6 +1451,7 @@ fn shortcut_row(key: &str, description: &str) -> gtk::Box {
 
 #[derive(Default)]
 struct DashboardData {
+    charts: Vec<ChartEntry>,
     providers: Vec<Card>,
     local: Vec<Card>,
     remote: Vec<Card>,
@@ -1376,6 +1461,10 @@ struct DashboardData {
 /// Synthetic visual fixtures only; never invoked for live sources.
 fn visual_scenario(data: &mut DashboardData, scenario: &str) {
     match scenario {
+        scenario if scenario.starts_with("charts-") => {
+            data.charts = chart_host::demo_entries(scenario)
+                .unwrap_or_else(|| panic!("unknown synthetic visual scenario: {scenario}"));
+        }
         "strip-missing" => visual_scenario(data, "missing"),
         "strip-fahrenheit" => visual_scenario(data, "fahrenheit"),
         "one" | "two" | "full" | "rolling" | "missing" => {
@@ -1540,6 +1629,73 @@ fn visual_scenario(data: &mut DashboardData, scenario: &str) {
         }
         _ => panic!("unknown synthetic visual scenario: {scenario}"),
     }
+}
+
+/// Focuses the first chart's plot so a real Enter key opens its Details, then
+/// replaces the snapshot underneath the open popover and checks that the same
+/// widgets and the open popover survived the update.
+fn test_chart_details_across_updates(
+    wide: &gtk::Box,
+    narrow: &gtk::Box,
+    data: &Rc<RefCell<DashboardData>>,
+) {
+    let (wide, narrow, data) = (wide.clone(), narrow.clone(), data.clone());
+    let mut armed = None;
+    let mut done = false;
+    glib::timeout_add_local(Duration::from_millis(300), move || {
+        let root: gtk::Widget = wide.clone().upcast();
+        let (Some(plot), Some(details)) = (
+            find_widget(&root, "chart-plot"),
+            find_widget(&root, "chart-details").and_then(|w| w.downcast::<gtk::MenuButton>().ok()),
+        ) else {
+            return glib::ControlFlow::Continue;
+        };
+        let Some(popover) = details.popover() else {
+            return glib::ControlFlow::Continue;
+        };
+        if armed.is_none() {
+            if plot.is_mapped() && plot.grab_focus() {
+                popover.connect_notify_local(Some("visible"), move |popover, _| {
+                    eprintln!("CHART_DETAILS visible={}", popover.is_visible());
+                });
+                eprintln!("CHART_FOCUS plot_focused=true");
+                let card = find_widget(&root, "chart-card-demo-spend");
+                eprintln!(
+                    "CHART_A11Y plot_label={} card_label={}",
+                    gtk::test_accessible_has_property(&plot, gtk::AccessibleProperty::Label),
+                    card.is_some_and(|card| gtk::test_accessible_has_property(
+                        &card,
+                        gtk::AccessibleProperty::Label
+                    ))
+                );
+                armed = Some(plot.clone());
+            }
+            return glib::ControlFlow::Continue;
+        }
+        if done || !popover.is_visible() {
+            return glib::ControlFlow::Continue;
+        }
+        done = true;
+        {
+            let mut data = data.borrow_mut();
+            for entry in &mut data.charts {
+                if let Some(snapshot) = entry.snapshot.as_mut() {
+                    snapshot.info.revision += 1;
+                }
+            }
+        }
+        let data = data.borrow();
+        sync_chart_section(&wide, true, &data);
+        sync_chart_section(&narrow, false, &data);
+        let same_plot =
+            find_widget(&root, "chart-plot").is_some_and(|now| Some(&now) == armed.as_ref());
+        eprintln!(
+            "CHART_DETAILS_UPDATE visible={} same_widgets={}",
+            popover.is_visible(),
+            same_plot
+        );
+        glib::ControlFlow::Break
+    });
 }
 
 fn find_widget(root: &gtk::Widget, name: &str) -> Option<gtk::Widget> {
@@ -2151,6 +2307,38 @@ fn reconcile_report_banner(stack: &gtk::Box, error: Option<&str>) {
     banner.set_visible(error.is_some());
 }
 
+static TERMINATION_REQUESTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+extern "C" fn note_termination(_signal: libc::c_int) {
+    TERMINATION_REQUESTED.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
+fn install_termination_flag() {
+    // SAFETY: the handler only stores to an atomic, which is async-signal-safe.
+    unsafe {
+        let mut action: libc::sigaction = std::mem::zeroed();
+        action.sa_sigaction = note_termination as extern "C" fn(libc::c_int) as usize;
+        libc::sigemptyset(&mut action.sa_mask);
+        for signal in [libc::SIGTERM, libc::SIGINT] {
+            libc::sigaction(signal, &action, std::ptr::null_mut());
+        }
+    }
+}
+
+fn sync_chart_section(stack: &gtk::Box, is_wide: bool, data: &DashboardData) {
+    chart_host::sync_charts(
+        stack,
+        &data.charts,
+        if is_wide {
+            sidescope::chart_view::CardLayout::Wide
+        } else {
+            sidescope::chart_view::CardLayout::Narrow
+        },
+        active_theme(),
+    );
+}
+
 fn render_dashboard(wide: &gtk::Box, narrow: &gtk::Box, data: &DashboardData, demo: bool) {
     let cards: Vec<_> = data
         .providers
@@ -2197,8 +2385,13 @@ fn render_dashboard(wide: &gtk::Box, narrow: &gtk::Box, data: &DashboardData, de
                 replace_contents(&view, &card_view(card, index, cards.len(), demo));
             }
         } else {
-            while let Some(child) = stack.first_child() {
-                stack.remove(&child);
+            // The chart section survives a rebuild so its focus and open Details do.
+            let mut child = stack.first_child();
+            while let Some(widget) = child {
+                child = widget.next_sibling();
+                if widget.widget_name() != "chart-section" {
+                    stack.remove(&widget);
+                }
             }
             if data.providers.is_empty() {
                 stack.append(&text(
@@ -2222,6 +2415,7 @@ fn render_dashboard(wide: &gtk::Box, narrow: &gtk::Box, data: &DashboardData, de
             });
         }
         reconcile_report_banner(stack, data.error.as_deref());
+        sync_chart_section(stack, is_wide, data);
         RENDER_CACHE.with_borrow_mut(|cache| {
             cache.insert(
                 id,

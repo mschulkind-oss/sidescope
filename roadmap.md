@@ -20,7 +20,7 @@ This is a routing table, not a feature catalog or a progress log. Details live i
 
 ## Command-driven charts
 
-1. [Build reusable CLI charts](docs/design/command-charts-plan.md) — the accepted [design](docs/design/command-charts.md) is a ready hand-off; track progress in [tasks](docs/tasks/command-charts.md).
+1. [Review reusable CLI charts](docs/tasks/command-charts.md) — built and synthetic-verified per the [design](docs/design/command-charts.md) and [plan](docs/design/command-charts-plan.md); see the [QA record](docs/qa/command-charts.md) for what is unverified, and the [agent-activity requests](docs/requests/agent-activity-charts.md) (proposed, not delivered).
 
 ## ▶️ Actionable
 

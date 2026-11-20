@@ -38,3 +38,27 @@ show_agy_gpt_oss = false
 # longitude = 0.0
 # place = "Your chosen place"
 # units = "celsius" # or "fahrenheit"; omitted defaults to celsius
+
+# Charts drawn from the JSON a local command prints. Nothing runs and no chart
+# card exists until a source is configured here. A source's command runs with
+# this application's authority and is NOT sandboxed: read it before enabling it.
+# `sidescope doctor` prints every full command. Copy-ready synthetic examples
+# and an opt-in usage-cost profile are in examples/charts/.
+# {from}, {to} (RFC 3339 instants) and {timezone} must each be a whole argument.
+# [[chart_sources]]
+# id = "example-metrics"
+# command = ["example-chart-data", "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}"]
+# format = "sidescope-chart-v1"  # or "columns-v1" plus a [chart_sources.mapping] table
+# window = "3h"                  # whole minutes up to 30d; or calendar_days = 5 (1-400)
+# timezone = "UTC"               # IANA zone; defines calendar days and axis labels
+# refresh_seconds = 30           # 5 or more
+# timeout_seconds = 10           # 1-60
+# capture_stderr = false         # keep a sanitized 8 KiB excerpt in Info
+#
+# [[chart_cards]]
+# id = "example-spend"
+# source = "example-metrics"
+# kind = "time-series"           # or "time-bars" or "ranked-bars"
+# metric = "amount"
+# group_by = ["project"]
+# # optional: title, summary, top_n = 1-16, stack_by = "dimension", bounded_percent

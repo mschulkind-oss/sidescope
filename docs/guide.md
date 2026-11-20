@@ -43,6 +43,7 @@ Sidescope dynamically links GTK4 and libadwaita (except when run via the Nix fla
 | **System telemetry** | CPU + per-logical-core graphs, Memory/Swap, Network throughput, Root Disk, Hardware Sensors (`hwmon` temps & fans) | Built-in (`/proc`, `/sys/class/hwmon`); zero config |
 | **AI usage** | OpenRouter, DeepSeek, Claude, Codex, z.ai, Antigravity (`Agy`), Muse Code | Optional: [`ai-usagebar`](https://github.com/akitaonrails/ai-usagebar) on `PATH` |
 | **Weather & Air** | Current conditions, 12-hour & 5-day forecast, US AQI & PM2.5 | Optional: `curl` on `PATH` + explicit `[weather]` coordinates |
+| **Charts** | Time series, time bars and ranked bars from your own command's JSON | Optional: `[[chart_sources]]` and `[[chart_cards]]`; see [section 7](#7-charts-from-local-commands) |
 
 ---
 
@@ -132,7 +133,40 @@ Setting `channels = []` intentionally hides sensor channels.
 
 ---
 
-## 7. Themes, Density, and Keyboard Shortcuts
+## 7. Charts from Local Commands
+
+Charts are opt-in. With no `[[chart_sources]]` table nothing runs and no chart card exists, and none appear in `--demo`, `--report` or `--browser`.
+
+A **source** is one command, written as an argument list (no shell), that prints a versioned JSON answer. A **card** chooses a metric from a source and draws it. Several cards can share one source, so one command answer can feed a daily bar chart and a ranking at once. Cards appear under the other cards, in the order you list them.
+
+> **Not sandboxed.** A source runs with Sidescope's authority and environment, like any program you start yourself. `sidescope doctor` prints each full command and whether its executable exists. Sidescope never installs, authenticates or starts anything for a source, and adds no automatic sync or collector action.
+
+```toml
+[[chart_sources]]
+id = "example-metrics"
+command = ["example-chart-data", "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}"]
+format = "sidescope-chart-v1"   # or "columns-v1" with a [chart_sources.mapping] table
+window = "3h"                   # or calendar_days = 5 (including today)
+timezone = "America/New_York"
+refresh_seconds = 30            # at least 5; timeout_seconds 1-60
+
+[[chart_cards]]
+id = "example-spend"
+source = "example-metrics"
+kind = "time-series"            # or "time-bars" or "ranked-bars"
+metric = "amount"
+group_by = ["project"]
+```
+
+`{from}`, `{to}` and `{timezone}` are replaced one whole argument at a time. Limits: one command per source at a time, four at once, 1 MiB of output and ten seconds by default. A failed run retries after 30, 60, 120, then 300 seconds; a missing executable or invalid configuration waits until you press **R** (or restart). The previous answer stays on screen, labeled as stale or as a failed refresh.
+
+What a card tells you, whatever the source: the range and bucket, the unit, whether a total is **incomplete** (a lower bound, drawn hatched and starred), whether the current day is still open (**so far**), and how fresh the answer is. Missing data is never drawn as zero. **Details** lists every value with its exact interval and quality; **Info** shows the executable name, last attempt and success, next retry, latency and request window. Focus a plot and press Left/Right, Home/End to inspect a point, Enter to open Details, Esc to close it. Quit with Sidescope's window or SIGTERM and every command it started is stopped.
+
+Ready-made, synthetic examples live in [`examples/charts/`](../examples/charts/README.md): two POSIX shell sources in the native format, and an opt-in profile for an agent-spend ledger that uses the generic `columns-v1` mapper. The profile's cards are labeled a **list-price estimate**, never an invoice. Design: [command-driven charts](design/command-charts.md).
+
+---
+
+## 8. Themes, Density, and Keyboard Shortcuts
 
 ### Runtime shortcuts
 
@@ -157,7 +191,7 @@ Valid `theme` IDs: `original`, `paper`, `terminal`, `blueprint`, `editorial`, `c
 
 ---
 
-## 8. Wayland / Sway Tiling
+## 9. Wayland / Sway Tiling
 
 Sidescope runs as an ordinary tiled Wayland window with `app_id` `org.mschulkind.Sidescope`. To pin it to a workspace and remove Sway's title bar:
 

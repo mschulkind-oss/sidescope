@@ -68,6 +68,9 @@ cleanup() {
     cp "$RUNTIME/app.log" "${CAPTURE%.png}-failed.log"
     tail -60 "$RUNTIME/app.log" >&2
   fi
+  for chart_log in "$RUNTIME"/charts-*.log; do
+    if (( status != 0 )) && [[ -f "$chart_log" ]]; then cp "$chart_log" "${CAPTURE%.png}-failed-$(basename "$chart_log")"; fi
+  done
   for pid in "$keyboard_pid" "$app_pid" "$browser_pid" "$sway_pid"; do
     if [[ -n "$pid" ]]; then kill "$pid" 2>/dev/null || :; wait "$pid" 2>/dev/null || :; fi
   done
@@ -166,6 +169,10 @@ if [[ ! "$WIDTH" =~ ^[0-9]+$ ]] || (( WIDTH < 636 || WIDTH > 644 )); then
 fi
 if [[ "${SIDESCOPE_VISUAL_DENSITY_ONLY:-0}" == 1 ]]; then
   source "$ROOT/scripts/visual-density.sh"
+  exit
+fi
+if [[ "${SIDESCOPE_VISUAL_CHARTS_ONLY:-0}" == 1 ]]; then
+  source "$ROOT/scripts/visual-charts.sh"
   exit
 fi
 assert_focus_transition "${CAPTURE%.png}-wide" 640
@@ -450,3 +457,4 @@ cp "$log" "${CAPTURE%.png}-themes-geometry.log"
 if grep -Ei 'panicked|CRITICAL|Gtk-WARNING|Adwaita-WARNING' "$log"; then cat "$log" >&2; exit 1; fi
 printf 'All 21 themes captured at 640px and 378px; runtime keyboard cycle and reverse wrap verified.\n'
 source "$ROOT/scripts/visual-density.sh"
+source "$ROOT/scripts/visual-charts.sh"

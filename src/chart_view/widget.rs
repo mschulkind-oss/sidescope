@@ -130,9 +130,14 @@ fn refresh(state: &State) {
     set_text(&parts.readout, Some(readout));
     parts.table.set_text(&table_text(model));
     parts.info.set_label(&model.info_lines().join("\n"));
-    // The crate's GTK feature level has no accessible-property API; GTK
-    // exposes the tooltip as the accessible name/description of a widget.
-    parts.plot.set_tooltip_text(Some(model.accessible_name()));
+    name_widget(parts.plot.upcast_ref(), model.accessible_name());
+}
+
+/// Sets the accessible label (what a screen reader announces) and keeps the
+/// same text as the pointer tooltip.
+fn name_widget(widget: &gtk::Widget, name: &str) {
+    widget.update_property(&[gtk::accessible::Property::Label(name)]);
+    widget.set_tooltip_text(Some(name));
 }
 
 fn select(shared: &Shared, index: Option<usize>) {
@@ -177,6 +182,8 @@ fn popover_button(name: &str, label: &str, content: &impl IsA<gtk::Widget>) -> g
     button.add_css_class("chart-action");
     button.set_widget_name(name);
     let popover = gtk::Popover::new();
+    // Popovers sit outside the card in the widget tree; this class scopes their CSS.
+    popover.add_css_class("chart-card-popover");
     popover.set_child(Some(content));
     button.set_popover(Some(&popover));
     button
@@ -241,7 +248,7 @@ pub fn card_widget(
     table_view.add_css_class("chart-table");
     let table = table_view.buffer();
     let scroll = gtk::ScrolledWindow::builder()
-        .min_content_width(320)
+        .min_content_width(560)
         .min_content_height(200)
         .max_content_height(320)
         .child(&table_view)
@@ -352,7 +359,7 @@ pub fn card_widget(
     plot.add_controller(click);
 
     refresh(&shared.borrow());
-    card.set_tooltip_text(Some(model.accessible_name()));
+    name_widget(card.upcast_ref(), model.accessible_name());
     // SAFETY: the value is only ever read back as `Shared` under this key.
     unsafe { card.set_data(STATE_KEY, shared) };
     card.upcast()
@@ -382,6 +389,6 @@ pub fn update_card_widget(
             .filter(|index| *index < model.selection_count());
         refresh(&state);
     }
-    widget.set_tooltip_text(Some(model.accessible_name()));
+    name_widget(widget, model.accessible_name());
     true
 }
