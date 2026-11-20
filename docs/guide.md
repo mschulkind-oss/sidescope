@@ -164,6 +164,8 @@ What a card tells you, whatever the source: the range and bucket, the unit, whet
 
 Ready-made, synthetic examples live in [`examples/charts/`](../examples/charts/README.md): two POSIX shell sources in the native format, and an opt-in profile for an agent-spend ledger that uses the generic `columns-v1` mapper. The profile's cards are labeled a **list-price estimate**, never an invoice. Reference: [command-driven charts](reference/command-charts/README.md).
 
+**For agents authoring new charts:** `doctor` checks configuration and executable presence, not data or chart semantics. The [authoring and debugging design](design/chart-authoring-and-debugging.md) proposes non-GUI schema discovery, validation, replay and one-shot execution, plus spending and Claude quota recipes. Those commands and quota adapters are not implemented yet; the existing examples and reference remain the runnable starting point.
+
 ---
 
 ## 8. Themes, Density, and Keyboard Shortcuts

@@ -10,11 +10,11 @@ vantage:
 
 # Feature request: chart-friendly agent-activity series
 
-**Audience:** the author of `agent-activity`. **Status of every request below: proposed.** None has been delivered, accepted, scheduled, or even seen by the upstream author. This document asks; it does not announce.
+**Audience:** the author of `agent-activity`. This is the original request, not a claim that every requested behavior was accepted. The [received response](agent-activity-charts-response.md), updated 2026-11-20 through upstream `49f89cc`, records narrower implementations, the omitted batch operation, and the workspace/project ruling. It also adds estimated and observed Claude quota data. The producer reports that these changes are not deployed; installed capabilities still need checking.
 
 ## 1. Summary and non-blocking promise
 
-Sidescope's [command-charts reference](../reference/command-charts/README.md) describes how it draws time-series and ranked charts from any local command. Its first example reads `agent-activity ledger series --format json --layout columns`. **The current CLI is sufficient for those first charts**: Sidescope will ship a profile that works with today's output, and an owner-written wrapper can fill any gap. No request here is a prerequisite for building, testing, or releasing Sidescope's charts.
+Sidescope's [command-charts reference](../reference/command-charts/README.md) describes how it draws time-series and ranked charts from any local command. Its first example reads `agent-activity ledger series --format json --layout columns`. **The original CLI is sufficient for the shipped first charts**: Sidescope has a compatible example profile, and an owner-written wrapper can fill a mapping gap. The [chart authoring and debugging design](../design/chart-authoring-and-debugging.md) covers adopting the received additions; those new Sidescope tools and quota adaptations are not implemented. No request here is a prerequisite for building, testing, or releasing Sidescope's charts.
 
 The requests remove guesswork a consumer currently resolves by convention. They do not ask `agent-activity` to emit a Sidescope-specific format, draw anything, or integrate with GTK. Every proposed field is additive and optional.
 
@@ -219,4 +219,4 @@ Criteria are per request. Each applies only if the maintainer chooses to deliver
 
 ## 10. Consumer posture
 
-Until any of this ships, Sidescope maps today's columns with an explicit profile: `knownCostUSD` with its `unpriced` counter, omitted columns declared zero, the returned `range` treated as effective bounds, collection freshness shown as unknown, and the header's `coverage` statement displayed as a caveat. If a request is delivered, the profile may adopt it behind a capability check; if it is not, nothing breaks. The upstream author may decline, rename, or reshape any request.
+Sidescope's shipped fallback maps the original columns with an explicit profile: `knownCostUSD` with its `unpriced` counter, omitted columns declared zero, the returned `range` treated as effective bounds, collection freshness shown as unknown, and the header's `coverage` statement displayed as a caveat. The [received response](agent-activity-charts-response.md) describes the producer's choices. New profiles can adopt supported additions after explicit feature checks; unsupported features do not invalidate the fallback.

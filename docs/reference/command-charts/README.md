@@ -87,4 +87,4 @@ Three rules keep the layers apart:
 
 ## Related documents
 
-[Agent-activity requests](../../requests/agent-activity-charts.md) (proposed upstream changes, not delivered); [source research](../../research/command-charts.md) (dependency and tree findings); [task list](../../tasks/command-charts.md); [user guide section](../../guide.md#7-charts-from-local-commands); [runnable examples](../../../examples/charts/README.md).
+[Agent-activity request](../../requests/agent-activity-charts.md) and [received response](../../requests/agent-activity-charts-response.md) (producer additions committed upstream, reported not deployed); [chart authoring and debugging design](../../design/chart-authoring-and-debugging.md) (proposed CLI and quota adapters, not shipped); [source research](../../research/command-charts.md); [task list](../../tasks/command-charts.md); [user guide section](../../guide.md#7-charts-from-local-commands); [runnable examples](../../../examples/charts/README.md).

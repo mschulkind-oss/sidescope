@@ -20,7 +20,8 @@ This is a routing table, not a feature catalog or a progress log. Details live i
 
 ## Command-driven charts
 
-1. [Verify command charts on the host](docs/tasks/command-charts.md) — the charts are built and verified only with synthetic commands (see the [reference](docs/reference/command-charts/README.md)); the owner's real collector, desktop, and screen reader, plus one unexplained visual-suite failure, are still open in the [QA record](docs/qa/command-charts.md#not-verified). The [agent-activity requests](docs/requests/agent-activity-charts.md) are proposed, not delivered, and block nothing.
+1. [Design chart authoring and headless verification](docs/design/chart-authoring-and-debugging.md) — before adopting more profiles, agents need supported ways to prove the data and chart construction without a window. This includes spending and Claude quota views from the [producer response](docs/requests/agent-activity-charts-response.md); it does not wait on host-desktop access.
+2. [Verify command charts on the host](docs/tasks/command-charts.md) — the shipped charts are verified with synthetic commands (see the [reference](docs/reference/command-charts/README.md)); the real collector, desktop, screen reader and unexplained visual failure remain in the [QA record](docs/qa/command-charts.md#not-verified). This verification remains independent of the proposed authoring tools.
 
 ## ▶️ Actionable
 
