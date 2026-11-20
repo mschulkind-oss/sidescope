@@ -810,12 +810,12 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
         let config = config.clone();
         let data = data.clone();
         let check_status = check_status.clone();
-        let timer_click = Rc::new(std::cell::Cell::new(false));
+        let timer_click = Rc::new(chart_host::AutomaticRefresh::default());
         let chart_refresh = chart_runtime.clone();
         let manual = timer_click.clone();
         let sources: Vec<String> = config.chart_sources.iter().map(|s| s.id.clone()).collect();
         refresh.connect_clicked(move |button| {
-            if !manual.get()
+            if manual.requests_chart_refresh()
                 && let Some(runtime) = chart_refresh.borrow().as_ref()
             {
                 for id in &sources {
@@ -891,15 +891,13 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
                 Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
             });
         });
-        refresh.emit_clicked();
+        timer_click.run(|| refresh.emit_clicked());
         let weak_refresh = refresh.downgrade();
         glib::timeout_add_seconds_local(REFRESH_INTERVAL_SECS, move || {
             match weak_refresh.upgrade() {
                 Some(button) => {
                     if allow_refresh(false, button.is_sensitive()) {
-                        timer_click.set(true);
-                        button.emit_clicked();
-                        timer_click.set(false);
+                        timer_click.run(|| button.emit_clicked());
                     }
                     glib::ControlFlow::Continue
                 }

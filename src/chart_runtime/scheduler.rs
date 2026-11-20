@@ -26,6 +26,14 @@ pub enum Event {
         revision: u64,
         outcome: Result<(), ChartError>,
     },
+    /// The request window is not open yet (for example the first second of a
+    /// one-day calendar window): nothing ran, so there is no failure to count
+    /// and no data to replace. Retry after `retry_after`.
+    Deferred {
+        source: String,
+        revision: u64,
+        retry_after: Duration,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,6 +155,25 @@ impl Scheduler {
                 revision,
                 outcome,
             } => self.finished(now, &source, revision, outcome, &mut actions),
+            Event::Deferred {
+                source,
+                revision,
+                retry_after,
+            } => {
+                if let Some(index) = self
+                    .draining
+                    .iter()
+                    .position(|(id, rev)| *id == source && *rev == revision)
+                {
+                    self.draining.remove(index);
+                } else if let Some(entry) = self.find_mut(&source)
+                    && entry.running == Some(revision)
+                {
+                    entry.running = None;
+                    entry.queued_refresh = false;
+                    entry.due = Some(now + retry_after);
+                }
+            }
         }
         self.start_due(now, &mut actions);
         actions

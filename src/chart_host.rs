@@ -29,6 +29,24 @@ pub struct ChartEntry {
     pub now: Option<Timestamp>,
 }
 
+/// Marks refresh-button emissions the application itself makes (startup and
+/// the quota timer). The scheduler already queries every chart source on its
+/// own, so only a user's click may ask it for another query.
+#[derive(Default)]
+pub struct AutomaticRefresh(std::cell::Cell<bool>);
+
+impl AutomaticRefresh {
+    pub fn run(&self, emit: impl FnOnce()) {
+        self.0.set(true);
+        emit();
+        self.0.set(false);
+    }
+
+    pub fn requests_chart_refresh(&self) -> bool {
+        !self.0.get()
+    }
+}
+
 /// Charts are polled and shown only in live mode with at least one source.
 pub fn starts_chart_runtime(demo: bool, sources: &[ChartSourceConfig]) -> bool {
     !demo && !sources.is_empty()
@@ -626,6 +644,16 @@ pub fn demo_entries(scenario: &str) -> Option<Vec<ChartEntry>> {
 mod tests {
     use super::*;
     use sidescope::chart::config::ChartKind;
+
+    #[test]
+    fn automatic_refreshes_never_ask_the_scheduler_for_another_query() {
+        let automatic = AutomaticRefresh::default();
+        assert!(automatic.requests_chart_refresh(), "a user click does");
+        let mut seen = None;
+        automatic.run(|| seen = Some(automatic.requests_chart_refresh()));
+        assert_eq!(seen, Some(false), "startup and timer emissions do not");
+        assert!(automatic.requests_chart_refresh(), "the guard is released");
+    }
 
     #[test]
     fn charts_start_only_for_live_mode_with_sources() {

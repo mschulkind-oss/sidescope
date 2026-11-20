@@ -5,14 +5,14 @@
 pub mod scheduler;
 
 use crate::chart::config::{
-    ChartSourceConfig, MAX_CONCURRENT_COMMANDS, Normalizer, STDERR_LIMIT_BYTES, STDOUT_LIMIT_BYTES,
-    resolve_request,
+    ChartSourceConfig, MAX_CONCURRENT_COMMANDS, Normalizer, RequestError, STDERR_LIMIT_BYTES,
+    STDOUT_LIMIT_BYTES, resolve_request_at,
 };
 use crate::chart::dataset::ChartDataset;
 use crate::chart::error::{ChartError, ChartErrorKind, sanitize_text};
 use crate::chart::state::{SourceInfo, SourceSnapshot};
 use crate::chart::time::{Interval, Timestamp};
-use crate::process::{CancelToken, CaptureLimits, RunFailure, run_bounded};
+use crate::process::{CancelToken, CaptureLimits, RunFailure, run_with_stderr};
 use scheduler::{Action, Event, Scheduler};
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -27,6 +27,9 @@ struct Answer {
     request_window: Option<Interval>,
     latency: Duration,
     stderr_excerpt: Option<String>,
+    /// Set when the request window is not open yet: nothing ran, nothing is
+    /// published and the scheduler retries after this delay.
+    deferred: Option<Duration>,
     result: Result<ChartDataset, ChartError>,
 }
 
@@ -216,7 +219,17 @@ impl Driver {
                     }
                     let outcome = answer.result.as_ref().map(|_| ()).map_err(Clone::clone);
                     let source_id = source.clone();
+                    let deferred = answer.deferred;
                     self.pending.insert(source.clone(), (revision, answer));
+                    if let Some(retry_after) = deferred {
+                        self.pending.remove(&source_id);
+                        self.handle(Event::Deferred {
+                            source,
+                            revision,
+                            retry_after,
+                        });
+                        continue;
+                    }
                     self.handle(Event::Finished {
                         source,
                         revision,
@@ -307,6 +320,7 @@ impl Driver {
                     request_window: None,
                     latency: started.elapsed(),
                     stderr_excerpt: None,
+                    deferred: None,
                     result: Err(ChartError::new(
                         ChartErrorKind::ParseFailure,
                         "reading the command output failed internally",
@@ -328,6 +342,7 @@ impl Driver {
                     request_window: None,
                     latency: Duration::ZERO,
                     stderr_excerpt: None,
+                    deferred: None,
                     result: Err(ChartError::new(
                         ChartErrorKind::SpawnFailed,
                         "cannot start a worker thread",
@@ -442,13 +457,26 @@ fn execute(
     cancel: &CancelToken,
     started: Instant,
 ) -> Answer {
-    let request = match resolve_request(config, Timestamp::now(), revision) {
+    let request = match resolve_request_at(config, Timestamp::now(), revision) {
         Ok(request) => request,
-        Err(error) => {
+        Err(RequestError::Deferred { retry_after }) => {
             return Answer {
                 request_window: None,
                 latency: started.elapsed(),
                 stderr_excerpt: None,
+                deferred: Some(retry_after),
+                result: Err(ChartError::new(
+                    ChartErrorKind::Cancelled,
+                    "the request window is not open yet",
+                )),
+            };
+        }
+        Err(RequestError::Invalid(error)) => {
+            return Answer {
+                request_window: None,
+                latency: started.elapsed(),
+                stderr_excerpt: None,
+                deferred: None,
                 result: Err(error),
             };
         }
@@ -464,7 +492,9 @@ fn execute(
         },
         timeout: config.timeout(),
     };
-    let (excerpt, result) = match run_bounded(&mut command, &limits, cancel) {
+    let mut stderr_bytes = Vec::new();
+    let (excerpt, result) = match run_with_stderr(&mut command, &limits, cancel, &mut stderr_bytes)
+    {
         Ok(captured) => (
             config
                 .capture_stderr
@@ -472,12 +502,19 @@ fn execute(
                 .flatten(),
             normalizer(config, &captured.stdout, &request),
         ),
-        Err(failure) => (None, Err(failure_error(failure))),
+        Err(failure) => (
+            config
+                .capture_stderr
+                .then(|| stderr_excerpt(&String::from_utf8_lossy(&stderr_bytes)))
+                .flatten(),
+            Err(failure_error(failure)),
+        ),
     };
     Answer {
         request_window: Some(request.window),
         latency: started.elapsed(),
         stderr_excerpt: excerpt,
+        deferred: None,
         result,
     }
 }

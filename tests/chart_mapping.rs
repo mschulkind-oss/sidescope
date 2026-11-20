@@ -856,16 +856,85 @@ fn the_profile_keeps_subscription_activity_apart_from_metered_cost() {
 #[test]
 fn the_profile_models_source_keeps_the_unknown_model_as_its_own_series() {
     let dataset = profile_dataset("models", "2026-11-03T20:00:00Z");
+    // The producer's placeholder is normalized by the profile's own mapping
+    // rule into an empty (Unknown) value; the series identity keeps raw text.
     let names: Vec<&str> = dataset
         .series()
         .iter()
         .map(|s| s.dimensions["model"].as_str())
         .collect();
-    assert_eq!(names, ["model-one", "(unknown)"]);
+    assert_eq!(names, ["model-one", ""]);
+    assert_eq!(dataset.series()[1].id, "[\"(unknown)\"]");
     assert_eq!(
         observed(&dataset, 1, "metered_cost")[2],
         (Some("2.625".into()), Partial)
     );
+}
+
+#[test]
+fn unknown_value_rule_is_explicit_per_dimension_and_keeps_distinct_identities() {
+    let mut config = parse_config(
+        r#"
+[[chart_sources]]
+id = "s"
+command = ["x"]
+format = "columns-v1"
+window = "3h"
+timezone = "UTC"
+[chart_sources.mapping]
+buckets = "/b"
+interval_start = "/s"
+interval_end = "/e"
+groups = "/g"
+dimensions = [{ name = "model", pointer = "/k/0", unknown_value = "?" }, { name = "team", pointer = "/k/1" }]
+[[chart_sources.mapping.metrics]]
+id = "m"
+label = "M"
+unit = "USD"
+quantity = "interval_total"
+values = "/v"
+"#,
+    )
+    .unwrap();
+    let source = config.chart_sources.remove(0);
+    let request = request_for(&source, "2026-11-20T12:00:00Z");
+    let raw = json!({
+        "b": [{"s": "2026-11-20T09:00:00Z", "e": "2026-11-20T10:00:00Z"}],
+        "g": [
+            {"k": ["?", "?"], "v": [1]},
+            {"k": ["a", "?"], "v": [2]}
+        ]
+    });
+    let dataset = map_columns(&raw, source.mapping.as_ref().unwrap(), &request).unwrap();
+    let mut shown: Vec<(String, String)> = dataset
+        .series()
+        .iter()
+        .map(|s| (s.dimensions["model"].clone(), s.dimensions["team"].clone()))
+        .collect();
+    shown.sort();
+    // Only the dimension that opted in is normalized; "?" stays literal elsewhere.
+    assert_eq!(
+        shown,
+        [
+            (String::new(), "?".to_string()),
+            ("a".to_string(), "?".to_string())
+        ]
+    );
+}
+
+#[test]
+fn every_profile_source_maps_the_coverage_statement_to_a_notice() {
+    let statement =
+        "Synthetic coverage statement: usage may be absent; no answer claims complete coverage.";
+    for (id, now) in [
+        ("recent", "2026-11-20T12:00:30Z"),
+        ("daily", "2026-11-03T20:00:00Z"),
+        ("models", "2026-11-03T20:00:00Z"),
+        ("subscription", "2026-11-03T20:00:00Z"),
+    ] {
+        let dataset = profile_dataset(id, now);
+        assert_eq!(dataset.notices(), [statement], "{id}");
+    }
 }
 
 // ---------- synthetic direct-contract commands ----------

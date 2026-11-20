@@ -5,7 +5,8 @@ use super::dataset::{ChartDataset, Quantity, UnknownContribution};
 use super::error::{ChartError, ChartErrorKind};
 use super::reduce::Reduction;
 use super::time::{
-    ChartZone, Interval, MAX_CALENDAR_DAYS, Timestamp, WindowSpec, format_utc, resolve_window,
+    ChartZone, Interval, MAX_CALENDAR_DAYS, Timestamp, WindowError, WindowSpec, format_utc,
+    resolve_window_checked,
 };
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -158,6 +159,9 @@ pub struct MappingConfig {
 pub struct MappingDimension {
     pub name: String,
     pub pointer: String,
+    /// A producer-specific placeholder meaning "no value". It is shown as an
+    /// empty (Unknown) dimension value; the series identity keeps the raw text.
+    pub unknown_value: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -424,17 +428,47 @@ pub struct ResolvedRequest {
     pub revision: u64,
 }
 
+/// Why a request could not be built: a configuration that cannot work, or a
+/// window that is not open yet and will be at the next second.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum RequestError {
+    Invalid(ChartError),
+    Deferred { retry_after: Duration },
+}
+
 pub fn resolve_request(
     source: &ChartSourceConfig,
     now: Timestamp,
     revision: u64,
 ) -> Result<ResolvedRequest, ChartError> {
-    let config_error = |message: String| ChartError::new(ChartErrorKind::ConfigInvalid, message);
+    resolve_request_at(source, now, revision).map_err(|error| match error {
+        RequestError::Invalid(error) => error,
+        RequestError::Deferred { .. } => ChartError::new(
+            ChartErrorKind::ConfigInvalid,
+            "window is empty at this instant",
+        ),
+    })
+}
+
+pub fn resolve_request_at(
+    source: &ChartSourceConfig,
+    now: Timestamp,
+    revision: u64,
+) -> Result<ResolvedRequest, RequestError> {
+    let config_error = |message: String| {
+        RequestError::Invalid(ChartError::new(ChartErrorKind::ConfigInvalid, message))
+    };
     let spec = source.window_spec().map_err(config_error)?;
     let zone = source.zone().map_err(config_error)?;
     let request_instant = Timestamp::from_second(now.as_second())
         .map_err(|_| config_error("request instant is out of range".into()))?;
-    let window = resolve_window(&spec, &zone, request_instant).map_err(config_error)?;
+    let window =
+        resolve_window_checked(&spec, &zone, request_instant).map_err(|error| match error {
+            WindowError::Invalid(message) => config_error(message),
+            WindowError::NotYetPositive => RequestError::Deferred {
+                retry_after: Duration::from_secs(1),
+            },
+        })?;
     let argv = source
         .command
         .iter()

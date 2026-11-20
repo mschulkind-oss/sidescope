@@ -53,6 +53,7 @@ range_start = "/range/from"
 range_end = "/range/to"
 generated_at = "/generatedAt"
 revision = "/generation"
+notices = ["/coverage/statement"]
 
 [[chart_sources.mapping.metrics]]
 id = "metered_cost"
@@ -88,6 +89,7 @@ range_start = "/range/from"
 range_end = "/range/to"
 generated_at = "/generatedAt"
 revision = "/generation"
+notices = ["/coverage/statement"]
 
 [[chart_sources.mapping.metrics]]
 id = "metered_cost"
@@ -119,11 +121,12 @@ buckets = "/buckets"
 interval_start = "/start"
 interval_end = "/end"
 groups = "/groups"
-dimensions = [{ name = "model", pointer = "/keys/0" }]
+dimensions = [{ name = "model", pointer = "/keys/0", unknown_value = "(unknown)" }]
 range_start = "/range/from"
 range_end = "/range/to"
 generated_at = "/generatedAt"
 revision = "/generation"
+notices = ["/coverage/statement"]
 
 [[chart_sources.mapping.metrics]]
 id = "metered_cost"
@@ -160,6 +163,7 @@ range_start = "/range/from"
 range_end = "/range/to"
 generated_at = "/generatedAt"
 revision = "/generation"
+notices = ["/coverage/statement"]
 
 [[chart_sources.mapping.metrics]]
 id = "subscription_responses"

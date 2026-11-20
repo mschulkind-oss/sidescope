@@ -299,7 +299,12 @@ pub fn map_columns(
                         mapping_error("mapping.dimensions", "pointer finds no string value")
                     })?;
                 tuple.push(value.to_string());
-                dimensions.insert(dimension.name.clone(), value.to_string());
+                let shown = if dimension.unknown_value.as_deref() == Some(value) {
+                    ""
+                } else {
+                    value
+                };
+                dimensions.insert(dimension.name.clone(), shown.to_string());
             }
             let mut by_metric = BTreeMap::new();
             for metric in &mapping.metrics {

@@ -109,6 +109,15 @@ fn shipped_profile_runs_end_to_end_through_the_generic_mapper() {
             model.message()
         );
         assert!(!model.table_rows().is_empty(), "{}", card.id);
+        assert!(
+            model
+                .info_lines()
+                .iter()
+                .any(|line| line.starts_with("Notice: Synthetic coverage statement")),
+            "{} Info lacks the coverage statement: {:?}",
+            card.id,
+            model.info_lines()
+        );
     }
     // The daily bars and the project ranking are two cards over one snapshot.
     let sources_of_daily: Vec<_> = config

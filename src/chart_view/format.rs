@@ -42,10 +42,26 @@ pub fn local_text(instant: Timestamp, zone: &ChartZone) -> String {
 
 pub fn interval_text(interval: &Interval, zone: &ChartZone) -> String {
     format!(
-        "{} – {}",
-        local_text(interval.start, zone),
-        local_text(interval.end, zone)
+        "{} \u{2013} {}",
+        exact_local_text(interval.start, zone),
+        exact_local_text(interval.end, zone)
     )
+}
+
+/// `local_text` plus any nonzero fractional second, so sub-second interval
+/// bounds stay distinguishable in Details.
+fn exact_local_text(instant: Timestamp, zone: &ChartZone) -> String {
+    let text = local_text(instant, zone);
+    let nanos = instant.subsec_nanosecond();
+    if nanos == 0 {
+        return text;
+    }
+    let fraction = format!("{:09}", nanos.rem_euclid(1_000_000_000));
+    let fraction = fraction.trim_end_matches('0');
+    match text.rsplit_once(' ') {
+        Some((clock, offset)) => format!("{clock}.{fraction} {offset}"),
+        None => text,
+    }
 }
 
 /// Short axis label: clock time for spans up to two days, otherwise the date.
@@ -111,7 +127,11 @@ pub fn amount_text(value: &ChartDecimal, unit: &str) -> String {
     };
     let mut text = value.format_fixed(places);
     if !value.is_zero() && text.chars().all(|c| matches!(c, '0' | '.' | '-')) {
-        text = "<0.0001".to_string();
+        text = if value.is_negative() {
+            ">-0.0001".to_string()
+        } else {
+            "<0.0001".to_string()
+        };
     } else if value.is_zero() {
         text = "0".to_string();
     }

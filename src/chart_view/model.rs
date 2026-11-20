@@ -477,6 +477,9 @@ fn build_dataset(
     if !summary.permitted(metric.quantity) {
         return Err("Card mismatch: this metric does not support that summary".to_string());
     }
+    if card.bounded_percent && metric.unit != "percent" {
+        return Err("Card mismatch: bounded_percent needs a percent metric".to_string());
+    }
     if dataset.series().is_empty() {
         return Ok(refusal("No observations"));
     }
@@ -597,8 +600,32 @@ fn legend_of(entries: &[Entry]) -> Vec<LegendEntry> {
         .collect()
 }
 
-fn named_limit(groups: &[GroupedSeries]) -> Option<usize> {
-    (groups.len() > MAX_VISIBLE_SERIES).then(|| MAX_VISIBLE_SERIES - 1 - unknown_count(groups))
+fn named_limit(groups: &[GroupedSeries]) -> Result<Option<usize>, String> {
+    if groups.len() <= MAX_VISIBLE_SERIES {
+        return Ok(None);
+    }
+    let unknown = unknown_count(groups);
+    MAX_VISIBLE_SERIES
+        .checked_sub(unknown.saturating_add(1))
+        .map(Some)
+        .ok_or_else(|| {
+            format!(
+                "Too many Unknown series: {unknown} groups with an empty value exceed the {MAX_VISIBLE_SERIES} the plot can show; every row is in Details"
+            )
+        })
+}
+
+fn capacity_refusal(
+    dataset: &ChartDataset,
+    metric: &MetricDescriptor,
+    groups: &[GroupedSeries],
+    message: String,
+) -> Built {
+    Built {
+        message: Some(message),
+        rows: time_rows(dataset, metric, groups),
+        ..Built::default()
+    }
 }
 
 fn too_many(count: usize) -> String {
@@ -717,7 +744,10 @@ fn build_lines(
     metric: &MetricDescriptor,
 ) -> Result<Built, String> {
     let groups = collapse(dataset, metric, &card.group_by)?;
-    let limit = named_limit(&groups);
+    let limit = match named_limit(&groups) {
+        Ok(limit) => limit,
+        Err(message) => return Ok(capacity_refusal(dataset, metric, &groups, message)),
+    };
     if limit.is_some() && metric.quantity == Quantity::Gauge {
         return Err(too_many(groups.len()));
     }
@@ -838,6 +868,12 @@ fn build_bars(
     metric: &MetricDescriptor,
 ) -> Result<Built, String> {
     let stack_dims: Vec<String> = card.stack_by.iter().cloned().collect();
+    if !card.group_by.is_empty() && card.group_by != stack_dims {
+        return Err(
+            "Card mismatch: time bars stack by one dimension; use stack_by, group_by is not supported"
+                .to_string(),
+        );
+    }
     let groups = collapse(dataset, metric, &stack_dims)?;
     if card.stack_by.is_some() && metric.quantity != Quantity::IntervalTotal {
         return Err("Stacking is only available for nonnegative interval totals".to_string());
@@ -846,7 +882,10 @@ fn build_bars(
     if card.stack_by.is_some() && negative {
         return Err("Stacking is only available for nonnegative interval totals".to_string());
     }
-    let limit = named_limit(&groups);
+    let limit = match named_limit(&groups) {
+        Ok(limit) => limit,
+        Err(message) => return Ok(capacity_refusal(dataset, metric, &groups, message)),
+    };
     if limit.is_some() && metric.quantity == Quantity::Gauge {
         return Err(too_many(groups.len()));
     }
@@ -955,6 +994,10 @@ fn build_bars(
     })
 }
 
+fn is_stale_observation(entry: &Entry) -> bool {
+    matches!(entry.observed, Some((_, false)))
+}
+
 fn build_ranked(
     card: &ChartCardConfig,
     dataset: &ChartDataset,
@@ -967,12 +1010,7 @@ fn build_ranked(
     }
     let top_n = card.top_n.map_or(DEFAULT_TOP_N, usize::from);
     let ranking: Ranking = rank(groups.clone(), summary, Some(top_n))?;
-    let negative = ranking.full.iter().any(|entry| {
-        entry
-            .value
-            .as_ref()
-            .is_some_and(|value| value.is_negative())
-    });
+    let negative = has_negative(&groups);
     let pseudo: Vec<Cell> = ranking
         .shown
         .iter()
@@ -1002,12 +1040,17 @@ fn build_ranked(
             value: entry.value.as_ref().map(|value| value.to_f64()),
             value_text: match &entry.value {
                 Some(value) => format!(
-                    "{}{}",
+                    "{}{}{}",
                     amount_text(value, &metric.unit),
                     if entry.quality == Quality::Complete {
                         ""
                     } else {
                         "*"
+                    },
+                    if is_stale_observation(entry) {
+                        " · last known"
+                    } else {
+                        ""
                     }
                 ),
                 None => "no known value".to_string(),
@@ -1028,14 +1071,23 @@ fn build_ranked(
         .full
         .iter()
         .map(|entry| {
+            // A gauge row shows the interval it was actually observed in.
+            let interval = match entry.observed {
+                Some((index, _)) => interval_text(&dataset.intervals()[index], dataset.timezone()),
+                None => range_label.clone(),
+            };
+            let mut quality = quality_text(entry.quality, summary == Reduction::Sum && current);
+            if is_stale_observation(entry) {
+                quality.push_str(" · last known");
+            }
             vec![
-                range_label.clone(),
+                interval,
                 entry.full_label.clone(),
                 entry
                     .value
                     .as_ref()
                     .map_or_else(|| "no value".to_string(), exact_text),
-                quality_text(entry.quality, summary == Reduction::Sum && current),
+                quality,
                 unit_text(&metric.unit).to_string(),
             ]
         })
@@ -1054,9 +1106,16 @@ fn build_ranked(
                 .map(|share| format!(" · {share} of known subtotal"))
                 .unwrap_or_default();
             format!(
-                "{}: {value} · {}{share}",
+                "{}: {value} · {}{}{share}",
                 entry.full_label,
-                quality_text(entry.quality, false)
+                quality_text(entry.quality, false),
+                match entry.observed {
+                    Some((index, false)) => format!(
+                        " · last known, observed {}",
+                        interval_text(&dataset.intervals()[index], dataset.timezone())
+                    ),
+                    _ => String::new(),
+                }
             )
         })
         .collect();

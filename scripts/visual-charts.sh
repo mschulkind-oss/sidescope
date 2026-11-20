@@ -111,10 +111,11 @@ timezone = "UTC"
 
 [[chart_sources]]
 id = "latency"
-command = ["$ex/synthetic-latency.sh", "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}"]
+command = ["/bin/sh", "-c", "echo run >> '$RUNTIME/latency-calls'; exec '$ex/synthetic-latency.sh' \"\$@\"", "sh", "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}"]
 format = "sidescope-chart-v1"
 window = "3h"
 timezone = "UTC"
+refresh_seconds = 60
 
 [[chart_sources]]
 id = "hung"
@@ -166,6 +167,9 @@ TOML
     sleep 0.25
   done
   for id in spend latency recent daily; do grep -q "CHART_SOURCE id=$id dataset=true error=none" "$log"; done
+  # Startup must not ask for a second query: the scheduler's first run is the only one.
+  sleep 2
+  [[ $(wc -l < "$RUNTIME/latency-calls") -eq 1 ]] || { echo "latency source ran $(wc -l < "$RUNTIME/latency-calls") times at startup" >&2; return 1; }
   swaymsg '[title="Sidescope"] focus' >/dev/null
   wtype -d 200 'abc'
   chart_capture_pair "$base-live"

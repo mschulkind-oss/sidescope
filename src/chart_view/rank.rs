@@ -19,6 +19,9 @@ pub struct Entry {
     pub value: Option<ChartDecimal>,
     pub quality: Quality,
     pub cells: Vec<Cell>,
+    /// For last-observation reductions: index of the interval observed and
+    /// whether it is the newest interval of the answer.
+    pub observed: Option<(usize, bool)>,
 }
 
 pub struct Ranking {
@@ -34,15 +37,21 @@ fn is_unknown(key: &[(String, String)]) -> bool {
     key.iter().any(|(_, value)| value.is_empty())
 }
 
-fn reduce(cells: &[Cell], reduction: Reduction) -> Result<(Option<ChartDecimal>, Quality), String> {
+type Reduced = (Option<ChartDecimal>, Quality, Option<(usize, bool)>);
+
+fn reduce(cells: &[Cell], reduction: Reduction) -> Result<Reduced, String> {
     match reduction {
         Reduction::Sum => {
             let sum = sum_cells(cells).map_err(|_| OVERFLOW.to_string())?;
-            Ok((sum.known, sum.quality))
+            Ok((sum.known, sum.quality, None))
         }
         Reduction::Last => Ok(match last_known(cells) {
-            Some(last) => (Some(last.value), last.quality),
-            None => (None, Quality::Missing),
+            Some(last) => (
+                Some(last.value),
+                last.quality,
+                Some((last.index, last.is_latest)),
+            ),
+            None => (None, Quality::Missing, None),
         }),
     }
 }
@@ -69,7 +78,7 @@ pub fn rank(
     let mut named = Vec::new();
     let mut unknown = Vec::new();
     for (group, label) in groups.into_iter().zip(labels) {
-        let (value, quality) = reduce(&group.cells, reduction)?;
+        let (value, quality, observed) = reduce(&group.cells, reduction)?;
         let is_unknown = is_unknown(&group.key);
         let entry = Entry {
             full_label: full_label(&group.key),
@@ -88,6 +97,7 @@ pub fn rank(
             value,
             quality,
             cells: group.cells,
+            observed,
         };
         if is_unknown {
             unknown.push(entry);
@@ -135,6 +145,7 @@ pub fn rank(
             value: total.known,
             quality: total.quality,
             cells,
+            observed: None,
         });
     }
     shown.extend(unknown);

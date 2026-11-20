@@ -15,7 +15,7 @@ Integration of the command-driven charts ([design](../design/command-charts.md),
 | Command | Result |
 | :--- | :--- |
 | `just format`, `just check-ci` (fmt, clippy `-D warnings`, all cargo suites, dev-tool/watch/deploy/release shell tests) | passed after the repairs below; suites: lib 89, bin 29, `chart_foundation` 41, `chart_integration` 4, `chart_mapping` 31, `chart_runtime` 35, `chart_view` 41, `cli` 8 |
-| `just test-visual` (private headless Sway: 21 themes, density, all existing suites, then `scripts/visual-charts.sh`) | **exit 0** on the third full run (logs in `.yolo/durable/charts-qa/`) |
+| `just test-visual` (private headless Sway: 21 themes, density, all existing suites, then `scripts/visual-charts.sh`) | **exit 0** on the third full run (logs were kept outside the repository) |
 | `SIDESCOPE_VISUAL_CHARTS_ONLY=1 just test-visual` after the final script hardening | exit 0 |
 | `uvx vantage-check` on the changed documents | see the final section |
 
@@ -47,3 +47,30 @@ The lane set the accessible name as tooltip text only. Integration now calls `up
 ## Not verified
 
 Host-live behavior with the owner's real `agent-activity` collector and desktop (no account access here); screen-reader announcement text; SIGKILL of the app (descendants of a direct child survive; only graceful quit and SIGTERM stop whole process groups); the runtime lane's red-first run was not captured and the foundation lane recorded no before/after release size, so none is claimed; Details popover placement under other compositors.
+
+## Review repair round (after the independent review of `e86379e`)
+
+The review blocked completion with six P1 and eight P2 findings. Each software bug got a permanent regression first; red means the new test failed before the fix. Exceptions are stated plainly.
+
+| Finding | Resolution | Regression |
+| :--- | :--- | :--- |
+| P1 unknown-series capacity underflow (a valid dataset aborted the app) | `named_limit` uses checked arithmetic; Unknown groups alone beyond the 16-series plot refuse visibly with their count, and Details keeps every row | `chart_view_repair`: 17 and 40 unknown groups (red: panic/empty message) |
+| P1 one-day window at local midnight became permanently suspended | structured `WindowError::NotYetPositive` / `RequestError::Deferred` and scheduler `Event::Deferred`: nothing is published, failures are not counted, prior data stays, retry after one second; `resolve_request` keeps its old error for other callers | `chart_runtime`: deferred keeps the source schedulable, midnight resolves to Deferred (written after the code, **no red run captured**) |
+| P1 native `bounded_percent` bypassed the unit check | card-level "Card mismatch" unless the metric unit is `percent`; the source stays published | `chart_view_repair` (red) |
+| P1 ranked gauges hid older observations | ranking keeps the observed interval; rows say "last known", Details shows the actual interval, readout names it | `chart_view_repair` (red) |
+| P1 profile dropped the coverage statement | all four profile sources map `/coverage/statement` to notices; synthetic fixtures carry a synthetic statement; Info shows it | `chart_mapping` (red) and `chart_integration` (Info line) |
+| P1 producer "unknown" model fell into Other | new generic mapping key `unknown_value` per dimension (rule R16 in the plan, design paragraph); the profile sets it for the model dimension; series identity keeps the raw text | `chart_mapping` (red), `chart_view_repair` (Unknown below the top-N cut stays its own row) |
+| P2 time bars ignored `group_by` | card-level mismatch naming `stack_by`/`group_by` unless they agree; the profile's `stack_by` cards are unchanged | `chart_view_repair` (red) |
+| P2 tiny negative headline lost its sign | `>-0.0001` versus `<0.0001` | `chart_view_repair` (red) |
+| P2 fractional seconds dropped in Details | interval text keeps nonzero fractions; Info timestamps stay whole seconds | `chart_view_repair` (red) |
+| P2 signed cells with positive net showed shares | signedness comes from the input cells | `chart_view_repair` (red) |
+| P2 opt-in stderr vanished on failure | bounded sanitized excerpt returned with the failure when `capture_stderr = true`; default still discards; flooding stderr on a failing command stays bounded | `chart_runtime` (the old assertion that failures carry no stderr was replaced; **no red run captured**, written after the code) |
+| P2 startup queried every chart twice | startup and quota-timer emissions run under `AutomaticRefresh`; only a user click requests a chart refresh | bin unit test (red: did not compile), and the live suite counts exactly one latency-source run after load |
+| P2 guide called every incomplete total a lower bound | reworded; "At least" only for declared nonnegative unknowns | docs |
+| P2 design called today's syntax unsupported | removed | docs |
+
+Results: `just format` then `just check-ci` exit 0 (lib 89, bin 30, foundation 41, integration 4, mapping 33, runtime 39, view 41, view-repair 9, cli 8, plus the shell suites). The chart-only compositor suite (`SIDESCOPE_VISUAL_CHARTS_ONLY=1 just test-visual`) exited 0; the live check now also proves a single startup query. Captures reopened at 640 px and 378 px: the profile's models card now draws a hatched grey **Unknown** row beside `model-one`, the many-series ranking still shows Other for fifteen hidden series, and no horizontal clipping appeared. A full 21-theme and density sweep was **not** rerun: nothing outside chart cards and chart-only CSS changed, and the existing suites do not render charts.
+
+The first-full-run visual failure remains **unproven**: the earlier green runs only show it is not deterministic, and the key-resend hardening is a mitigation, not a proven fix.
+
+Next gate: a second independent review of this repair commit. This record is not a graduation of the charts documents.

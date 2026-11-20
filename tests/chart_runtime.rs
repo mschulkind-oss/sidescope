@@ -290,11 +290,103 @@ fn nonzero_exit_keeps_the_prior_dataset_and_leaks_nothing() {
         failed.dataset.as_ref().unwrap()
     ));
     assert_eq!(failed.info.last_success, good.info.last_success);
-    assert!(
-        failed.stderr_excerpt.is_none(),
-        "stderr never leaks via errors"
+    assert_eq!(
+        failed.stderr_excerpt.as_deref(),
+        Some("SECRET-STDERR"),
+        "opt-in capture keeps the bounded stderr of a failing run"
     );
     assert!(!failed.info.retry_suspended);
+}
+
+#[test]
+fn failed_runs_discard_stderr_unless_capture_is_opted_in() {
+    let scratch = Scratch::new("nonzero-default");
+    let config = source(
+        "alpha",
+        &command("flaky.sh", &[&scratch.file("count"), MINIMAL]),
+        "",
+    );
+    let runtime = ChartRuntime::start(&[config], NORMALIZER);
+    await_snapshot(&runtime, "alpha", |s| s.dataset.is_some());
+    runtime.refresh_now("alpha");
+    let failed = await_snapshot(&runtime, "alpha", |s| s.last_error.is_some());
+    assert!(failed.stderr_excerpt.is_none());
+}
+
+#[test]
+fn capture_on_a_failing_command_that_floods_stderr_stays_bounded_and_does_not_deadlock() {
+    let scratch = Scratch::new("flood-fail");
+    let config = source(
+        "noisy",
+        &command("noisy-stderr.sh", &["/definitely/missing.json"]),
+        "capture_stderr = true\ntimeout_seconds = 20\n",
+    );
+    let _ = &scratch;
+    let runtime = ChartRuntime::start(&[config], NORMALIZER);
+    let failed = await_snapshot(&runtime, "noisy", |s| s.last_error.is_some());
+    assert!(
+        failed
+            .stderr_excerpt
+            .as_ref()
+            .is_none_or(|text| text.chars().count() <= 8192)
+    );
+    assert!(
+        failed
+            .stderr_excerpt
+            .iter()
+            .all(|text| !text.contains('\u{1b}'))
+    );
+}
+
+#[test]
+fn a_deferred_window_is_not_a_failure_and_keeps_the_source_schedulable() {
+    let mut scheduler = Scheduler::new(&[sched_source("alpha", "")], 4);
+    let actions = scheduler.step(secs(0), Event::Tick);
+    let revision = starts(&actions)[0].1;
+    let actions = scheduler.step(
+        secs(0),
+        Event::Deferred {
+            source: "alpha".into(),
+            revision,
+            retry_after: secs(1),
+        },
+    );
+    assert!(starts(&actions).is_empty());
+    assert!(!scheduler.is_suspended("alpha"));
+    assert_eq!(scheduler.next_due("alpha"), Some(secs(1)));
+    let actions = scheduler.step(secs(1), Event::Tick);
+    assert_eq!(starts(&actions).len(), 1, "retried one second later");
+    // A later real failure still starts the backoff ladder at its first step.
+    let revision = starts(&actions)[0].1;
+    finish(
+        &mut scheduler,
+        secs(1),
+        "alpha",
+        revision,
+        failure(ChartErrorKind::Timeout),
+    );
+    assert_eq!(scheduler.next_due("alpha"), Some(secs(1) + secs(30)));
+}
+
+#[test]
+fn one_day_calendar_window_at_local_midnight_is_deferred_not_invalid() {
+    use sidescope::chart::config::{RequestError, resolve_request_at};
+    let config = calendar_source("UTC", 1);
+    for instant in ["2026-11-20T00:00:00Z", "2026-11-20T00:00:00.900Z"] {
+        match resolve_request_at(&config, at(instant), 1) {
+            Err(RequestError::Deferred { retry_after }) => assert_eq!(retry_after, secs(1)),
+            other => panic!("{instant}: {other:?}"),
+        }
+    }
+    let request = resolve_request_at(&config, at("2026-11-20T00:00:01Z"), 1).unwrap();
+    assert_eq!(request.window.seconds(), 1);
+    // A genuinely invalid configuration stays invalid.
+    let mut bad = calendar_source("UTC", 1);
+    bad.timezone = "Not/AZone".into();
+    assert!(matches!(
+        resolve_request_at(&bad, at("2026-11-20T00:00:00Z"), 1),
+        Err(RequestError::Invalid(_))
+    ));
 }
 
 #[test]

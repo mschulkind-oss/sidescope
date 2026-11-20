@@ -126,6 +126,15 @@ impl WindowSpec {
     }
 }
 
+/// Why a window could not be resolved: a configuration that can never work,
+/// or a calendar window whose first instant is still the request instant.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WindowError {
+    Invalid(String),
+    /// Zero length right now; positive at the next whole second.
+    NotYetPositive,
+}
+
 /// Fixed: `[now-minutes, now)`. Calendar: `[local midnight (days-1) dates
 /// before today, now)`.
 pub fn resolve_window(
@@ -133,19 +142,34 @@ pub fn resolve_window(
     zone: &ChartZone,
     now: Timestamp,
 ) -> Result<Interval, String> {
+    resolve_window_checked(spec, zone, now).map_err(|error| match error {
+        WindowError::Invalid(message) => message,
+        WindowError::NotYetPositive => "window is empty at this instant".to_string(),
+    })
+}
+
+pub fn resolve_window_checked(
+    spec: &WindowSpec,
+    zone: &ChartZone,
+    now: Timestamp,
+) -> Result<Interval, WindowError> {
+    let invalid = |message: &str| WindowError::Invalid(message.to_string());
     let start = match spec {
         WindowSpec::Fixed { minutes } => now
             .checked_sub(SignedDuration::from_mins(i64::from(*minutes)))
-            .map_err(|_| "window start is out of range".to_string())?,
+            .map_err(|_| invalid("window start is out of range"))?,
         WindowSpec::CalendarDays(days) => {
             let today = zone.zone.to_datetime(now).date();
             let first = today
                 .checked_sub(Span::new().days(i64::from(*days) - 1))
-                .map_err(|_| "window start is out of range".to_string())?;
+                .map_err(|_| invalid("window start is out of range"))?;
             zone.zone
                 .to_timestamp(first.to_datetime(Time::midnight()))
-                .map_err(|_| "window start is out of range".to_string())?
+                .map_err(|_| invalid("window start is out of range"))?
         }
     };
-    Interval::new(start, now)
+    if start == now && matches!(spec, WindowSpec::CalendarDays(_)) {
+        return Err(WindowError::NotYetPositive);
+    }
+    Interval::new(start, now).map_err(WindowError::Invalid)
 }

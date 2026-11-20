@@ -139,13 +139,13 @@ The UI computes an inspectable request—source ID, resolved arguments, requeste
 1. **Native contract.** Any executable or owner-written wrapper emits the snapshot above on stdout. The source can query SQLite, call a service, or invoke another CLI; Sidescope does not need to know how.
 2. **Declarative column mapping.** For an existing interval/column JSON CLI, a source config names JSON pointers to interval boundaries, group arrays, dimension keys, metric arrays, and optional metadata. [JSON Pointer](https://www.rfc-editor.org/rfc/rfc6901) is an exact field selector, not a programming language. Pointers within a group are relative to that group. Ordered key tuples form series IDs without delimiter collisions.
 
-The mapper deliberately supports only aligned arrays, dimension renaming, decimal conversion, missing-column policy, and one quality counter per metric: zero means complete, positive means partial, absent means missing unless explicitly configured as omitted-zero. It does not contain arithmetic expressions, ledger field names, or pricing logic. Arbitrary joins, cross-column computations, and source-specific coverage interpretation belong in an external wrapper. Every mapped metric declares its unit and quantity.
+The mapper deliberately supports only aligned arrays, dimension renaming, decimal conversion, missing-column policy, and one quality counter per metric: zero means complete, positive means partial, absent means missing unless explicitly configured as omitted-zero. It does not contain arithmetic expressions, ledger field names, or pricing logic. Arbitrary joins, cross-column computations, and source-specific coverage interpretation belong in an external wrapper. Every mapped metric declares its unit and quantity. One more additive rule keeps producer placeholders out of the renderer: a mapped dimension may declare `unknown_value`, a literal the producer uses for "no value"; it is presented as an empty (Unknown) dimension value while the series identity keeps the raw text. Mappings may also name `notices` pointers, which the agent-activity profile uses for the coverage statement so it is always visible in Info.
 
 For agent-activity, a mapping selects `buckets`, `groups`, their `keys`, and the configured cost column. The profile explicitly declares **omitted columns are zero** because that is this CLI's documented rule; shorter arrays refuse the snapshot; explicit nulls remain missing, never padded with zeros. Matching unpriced columns determine partial cells. Without that quality mapping, a cost profile is invalid. The source's coverage caveats remain visible even when every plotted cost cell is complete.
 
 ### Configuration sketch
 
-This is proposed syntax, **not accepted by today's application**. This direct-contract example assumes an owner-provided wrapper, not an executable shipped today:
+This direct-contract example assumes an owner-provided wrapper, not an executable shipped today; the source and card syntax itself is accepted and validated by the application:
 
 ```toml
 [[chart_sources]]

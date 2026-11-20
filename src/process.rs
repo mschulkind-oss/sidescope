@@ -147,6 +147,18 @@ pub fn run_bounded(
     limits: &CaptureLimits,
     cancel: &CancelToken,
 ) -> Result<Captured, RunFailure> {
+    run_with_stderr(command, limits, cancel, &mut Vec::new())
+}
+
+/// Like `run_bounded`, but the first `limits.stderr` bytes of stderr are left
+/// in `stderr_bytes` whatever the outcome, so a failing command's explanation
+/// is still available to a caller that opted in.
+pub fn run_with_stderr(
+    command: &mut Command,
+    limits: &CaptureLimits,
+    cancel: &CancelToken,
+    stderr_bytes: &mut Vec<u8>,
+) -> Result<Captured, RunFailure> {
     let start = Instant::now();
     command
         .process_group(0)
@@ -188,7 +200,6 @@ pub fn run_bounded(
         return Err(RunFailure::SpawnFailed);
     }
     let mut bytes = Vec::new();
-    let mut stderr_bytes = Vec::new();
     let mut buffer = [0u8; 8192];
     loop {
         if cancel.is_cancelled() {
@@ -199,10 +210,13 @@ pub fn run_bounded(
         }
         let status = process.status().map_err(|_| RunFailure::SpawnFailed)?;
         if let Some(status) = status.filter(|s| !s.success()) {
+            if let Some(pipe) = stderr.as_mut() {
+                drain_pipe(pipe, stderr_bytes, limits.stderr);
+            }
             return Err(RunFailure::NonzeroExit(status.code()));
         }
         if let Some(pipe) = stderr.as_mut() {
-            drain_pipe(pipe, &mut stderr_bytes, limits.stderr);
+            drain_pipe(pipe, stderr_bytes, limits.stderr);
         }
         match stdout.read(&mut buffer) {
             Ok(n) if n > 0 => {
@@ -221,11 +235,11 @@ pub fn run_bounded(
             // The group has been stopped. Keep all buffered successful output,
             // then close the pipes rather than wait for an escaped pipe holder.
             if let Some(pipe) = stderr.as_mut() {
-                drain_pipe(pipe, &mut stderr_bytes, limits.stderr);
+                drain_pipe(pipe, stderr_bytes, limits.stderr);
             }
             return Ok(Captured {
                 stdout: String::from_utf8(bytes).map_err(|_| RunFailure::NotUtf8)?,
-                stderr: String::from_utf8_lossy(&stderr_bytes).into_owned(),
+                stderr: String::from_utf8_lossy(stderr_bytes).into_owned(),
             });
         }
         std::thread::sleep(
