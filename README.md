@@ -4,13 +4,17 @@ A native Rust + GTK4/libadwaita status column designed to tile beside your brows
 
 Sidescope keeps live system telemetry, AI usage quotas, and local weather visible in a quiet 640 px column without taking over window management or storing credentials.
 
+| **Original** (`screen-fit`, full dashboard) | **Paper Ledger** (`comfortable`, filtered AI + expanded Antigravity) |
+| :---: | :---: |
+| ![Sidescope Original theme](docs/images/sidescope-original.png) | ![Sidescope Paper Ledger theme](docs/images/sidescope-paper.png) |
+
 ---
 
 ## What it shows
 
 - **System telemetry (zero config):** CPU and per-logical-core history graphs, Memory/Swap, Network throughput, Root Disk capacity, and `hwmon` temperatures/fan RPM.
-- **AI usage (optional):** Balances and reset-window pace indicators for OpenRouter, DeepSeek, Claude, Codex, z.ai, Antigravity, and Muse Code via [`ai-usagebar`](https://github.com/akitaonrails/ai-usagebar).
-- **Weather & Air quality (opt-in):** Current conditions, 12-hour/5-day forecast, and US AQI/PM2.5 from Open-Meteo using explicit coordinates you choose.
+- **AI usage (auto-detected if installed):** Balances and reset-window pace indicators for OpenRouter, DeepSeek, Claude, Codex, z.ai, Antigravity, and Muse Code when [`ai-usagebar`](https://github.com/akitaonrails/ai-usagebar) is on your `PATH`.
+- **Weather & Air quality (off until configured):** Current conditions, 12-hour/5-day forecast, and US AQI/PM2.5 from Open-Meteo once you add explicit coordinates to `~/.config/sidescope/config.toml`.
 
 ---
 
