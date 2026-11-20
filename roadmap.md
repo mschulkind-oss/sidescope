@@ -18,6 +18,10 @@ This is a routing table, not a feature catalog or a progress log. Details live i
 
 1. [Independent review and host QA](docs/plans/dashboard.md) — review the expanded native dashboard before accepting the integration; see [actual observations and unverified limits](docs/qa/dashboard.md).
 
+## Command-driven charts
+
+1. [Review reusable CLI charts](docs/design/command-charts.md) — ground custom-data extensibility in minute-level history, daily totals, and project breakdowns without a tool-specific renderer; acceptance precedes the [implementation handoff seed](docs/design/command-charts-plan.md).
+
 ## ▶️ Actionable
 
 | # | Next agent action | Doc | Stops at |
@@ -44,7 +48,7 @@ No immediate ruling blocks the design work. The two live questions in the [desig
 
 | Candidate | Revisit when |
 | --- | --- |
-| [Stable public extension format](docs/design/sidebar.md#architecture) | Built-in sources establish a real contract and safe execution model |
+| Compiled third-party widget plugins | Revisit only if the [command-driven chart contract](docs/design/command-charts.md) cannot serve a concrete source or interaction |
 | [Compositor-dependent edge panel](docs/research/wayland-sidebar.md#workspace-only-appearance-without-a-layer-surface) | The owner wants an output-wide panel or accepts workspace tracking; a one-workspace dashboard fits an undecorated tiled window better |
 
 ## What this file does not cover
