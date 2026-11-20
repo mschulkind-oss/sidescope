@@ -1030,3 +1030,142 @@ fn source_tree_carries_no_ledger_vocabulary() {
     walk(&std::path::Path::new(ROOT).join("src"), &mut hits);
     assert!(hits.is_empty(), "{hits:?}");
 }
+
+// ---- parent-container guard for omitted = "zero" ----
+
+const NESTED: &str = r#"
+[[chart_sources]]
+id = "ledger"
+command = ["example-ledger"]
+format = "columns-v1"
+window = "3h"
+timezone = "UTC"
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = [{ name = "project", pointer = "/keys/0" }]
+[[chart_sources.mapping.metrics]]
+id = "cost"
+label = "Cost"
+unit = "USD"
+quantity = "interval_total"
+values = "/columns/knownCostUSD"
+quality_counter = "/columns/unpriced"
+omitted = "zero"
+"#;
+
+fn nested(group: Value) -> Value {
+    json!({"buckets": minute_buckets(1), "groups": [group]})
+}
+
+#[test]
+fn an_objects_layout_group_is_refused_not_drawn_as_zero() {
+    let objects =
+        nested(json!({"keys": ["claude", "subscription"], "values": [{"knownCostUSD": "4"}]}));
+    refused(NESTED, &objects, ChartErrorKind::InvalidMapping);
+}
+
+#[test]
+fn a_missing_null_or_scalar_parent_is_refused_and_a_real_empty_container_is_zero() {
+    for parent in [json!(null), json!(7), json!("x")] {
+        refused(
+            NESTED,
+            &nested(json!({"keys": ["a"], "columns": parent})),
+            ChartErrorKind::InvalidMapping,
+        );
+    }
+    let dataset = map(NESTED, &nested(json!({"keys": ["a"], "columns": {}}))).unwrap();
+    assert_eq!(
+        observed(&dataset, 0, "cost"),
+        cells(&[(Some("0"), Complete)])
+    );
+    // Empty array parent: only a canonical numeric leaf is an omitted index.
+    let indexed = NESTED
+        .replace("/columns/knownCostUSD", "/columns/0")
+        .replace("/columns/unpriced", "/quality/0");
+    let dataset = map(
+        &indexed,
+        &nested(json!({"keys": ["a"], "columns": [], "quality": []})),
+    )
+    .unwrap();
+    assert_eq!(
+        observed(&dataset, 0, "cost"),
+        cells(&[(Some("0"), Complete)])
+    );
+    // A string key against an array is a wrong shape, never an omitted leaf.
+    refused(
+        NESTED,
+        &nested(json!({"keys": ["a"], "columns": []})),
+        ChartErrorKind::InvalidMapping,
+    );
+    for bad in ["-1", "01", "1.5", "+1", ""] {
+        let config = NESTED
+            .replace("/columns/knownCostUSD", &format!("/columns/{bad}"))
+            .replace("quality_counter = \"/columns/unpriced\"", "");
+        refused(
+            &config,
+            &nested(json!({"keys": ["a"], "columns": []})),
+            ChartErrorKind::InvalidMapping,
+        );
+    }
+}
+
+#[test]
+fn the_guard_applies_to_the_counter_and_keeps_explicit_null_and_root_parents() {
+    let split = NESTED.replace("/columns/unpriced", "/quality/unpriced");
+    refused(
+        &split,
+        &nested(json!({"keys": ["a"], "columns": {"knownCostUSD": ["1"]}})),
+        ChartErrorKind::InvalidMapping,
+    );
+    let ok = map(
+        &split,
+        &nested(json!({"keys": ["a"], "columns": {"knownCostUSD": ["1"]}, "quality": {}})),
+    )
+    .unwrap();
+    assert_eq!(observed(&ok, 0, "cost"), cells(&[(Some("1"), Complete)]));
+    let null_leaf = map(
+        NESTED,
+        &nested(json!({"keys": ["a"], "columns": {"knownCostUSD": null, "unpriced": [0]}})),
+    )
+    .unwrap();
+    assert_eq!(observed(&null_leaf, 0, "cost"), cells(&[(None, Missing)]));
+    // omitted = "missing" never needed a parent: unchanged.
+    let default = NESTED.replace("omitted = \"zero\"", "");
+    let missing = map(&default, &nested(json!({"keys": ["a"]}))).unwrap();
+    assert_eq!(observed(&missing, 0, "cost"), cells(&[(None, Missing)]));
+    // A pointer whose parent is the group itself is unchanged.
+    let root = NESTED
+        .replace("/columns/knownCostUSD", "/cost")
+        .replace("quality_counter = \"/columns/unpriced\"", "");
+    let zero = map(&root, &nested(json!({"keys": ["a"]}))).unwrap();
+    assert_eq!(observed(&zero, 0, "cost"), cells(&[(Some("0"), Complete)]));
+}
+
+#[test]
+fn the_empty_key_and_escaped_tokens_are_resolved_before_the_guard() {
+    let empty_key = NESTED
+        .replace("/columns/knownCostUSD", "/columns/")
+        .replace("/columns/unpriced", "/columns/n");
+    let dataset = map(&empty_key, &nested(json!({"keys": ["a"], "columns": {}}))).unwrap();
+    assert_eq!(
+        observed(&dataset, 0, "cost"),
+        cells(&[(Some("0"), Complete)])
+    );
+    // `~1` is a slash inside one token: the parent is the key "a/b".
+    let escaped = NESTED
+        .replace("/columns/knownCostUSD", "/a~1b/leaf")
+        .replace("/columns/unpriced", "/a~1b/count");
+    let dataset = map(&escaped, &nested(json!({"keys": ["a"], "a/b": {}}))).unwrap();
+    assert_eq!(
+        observed(&dataset, 0, "cost"),
+        cells(&[(Some("0"), Complete)])
+    );
+    refused(
+        &escaped,
+        &nested(json!({"keys": ["a"], "a": {"b": {}}})),
+        ChartErrorKind::InvalidMapping,
+    );
+}

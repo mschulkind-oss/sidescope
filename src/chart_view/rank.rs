@@ -1,13 +1,13 @@
-//! Ranking of collapsed groups: stable ordering, an aggregated Other, and a
-//! separate Unknown category that is never folded into Other.
+//! Display attachments for ranked rows: labels and swatches. Ordering,
+//! folding into Other and the separate Unknown category are decided by
+//! `chart::facts`; nothing here ranks.
 
 use super::format::{display_labels, full_label};
 use super::model::RowKind;
 use super::palette::{Swatch, swatch_for};
 use crate::chart::dataset::{Cell, Quality};
 use crate::chart::decimal::ChartDecimal;
-use crate::chart::reduce::{GroupedSeries, Reduction, last_known, sum_cells};
-use std::cmp::Ordering;
+use crate::chart::facts::{CardFacts, RowRole};
 
 #[derive(Debug, Clone)]
 pub struct Entry {
@@ -19,135 +19,66 @@ pub struct Entry {
     pub value: Option<ChartDecimal>,
     pub quality: Quality,
     pub cells: Vec<Cell>,
+    /// Interval indices a sampled line does not connect across.
+    pub breaks: Vec<usize>,
     /// For last-observation reductions: index of the interval observed and
     /// whether it is the newest interval of the answer.
     pub observed: Option<(usize, bool)>,
 }
 
-pub struct Ranking {
-    /// Top named entries, then Other when entries were cut, then Unknown.
-    pub shown: Vec<Entry>,
-    /// Every named entry in rank order, then Unknown; Other never repeats them.
-    pub full: Vec<Entry>,
-}
-
-const OVERFLOW: &str = "Totals exceed the supported numeric range";
-
-fn is_unknown(key: &[(String, String)]) -> bool {
-    key.iter().any(|(_, value)| value.is_empty())
-}
-
-type Reduced = (Option<ChartDecimal>, Quality, Option<(usize, bool)>);
-
-fn reduce(cells: &[Cell], reduction: Reduction) -> Result<Reduced, String> {
-    match reduction {
-        Reduction::Sum => {
-            let sum = sum_cells(cells).map_err(|_| OVERFLOW.to_string())?;
-            Ok((sum.known, sum.quality, None))
-        }
-        Reduction::Last => Ok(match last_known(cells) {
-            Some(last) => (
-                Some(last.value),
-                last.quality,
-                Some((last.index, last.is_latest)),
-            ),
-            None => (None, Quality::Missing, None),
-        }),
-    }
-}
-
-fn order(a: &Entry, b: &Entry) -> Ordering {
-    match (&a.value, &b.value) {
-        (Some(x), Some(y)) => y.cmp(x),
-        (Some(_), None) => Ordering::Less,
-        (None, Some(_)) => Ordering::Greater,
-        (None, None) => Ordering::Equal,
-    }
-    .then_with(|| a.key.cmp(&b.key))
-}
-
-/// `named_limit` of `None` keeps every named entry. Cutting named entries
-/// creates an Other only for sums; gauges cannot be aggregated honestly.
-pub fn rank(
-    groups: Vec<GroupedSeries>,
-    reduction: Reduction,
-    named_limit: Option<usize>,
-) -> Result<Ranking, String> {
-    let keys: Vec<Vec<(String, String)>> = groups.iter().map(|group| group.key.clone()).collect();
-    let labels = display_labels(&keys);
-    let mut named = Vec::new();
-    let mut unknown = Vec::new();
-    for (group, label) in groups.into_iter().zip(labels) {
-        let (value, quality, observed) = reduce(&group.cells, reduction)?;
-        let is_unknown = is_unknown(&group.key);
-        let entry = Entry {
-            full_label: full_label(&group.key),
-            swatch: if is_unknown {
-                Swatch::Unknown
-            } else {
-                swatch_for(&group.key)
-            },
-            kind: if is_unknown {
-                RowKind::Unknown
-            } else {
-                RowKind::Named
-            },
-            label,
-            key: group.key,
-            value,
-            quality,
-            cells: group.cells,
-            observed,
-        };
-        if is_unknown {
-            unknown.push(entry);
-        } else {
-            named.push(entry);
-        }
-    }
-    named.sort_by(order);
-    unknown.sort_by(order);
-    let mut full = named.clone();
-    full.extend(unknown.iter().cloned());
-
-    let mut shown = named;
-    let mut rest = Vec::new();
-    if let Some(limit) = named_limit
-        && shown.len() > limit
-    {
-        rest = shown.split_off(limit);
-    }
-    if !rest.is_empty() && reduction == Reduction::Sum {
-        let pseudo: Vec<Cell> = rest
-            .iter()
-            .map(|entry| Cell {
-                value: entry.value.clone(),
-                quality: entry.quality,
-            })
-            .collect();
-        let total = sum_cells(&pseudo).map_err(|_| OVERFLOW.to_string())?;
-        let width = rest[0].cells.len();
-        let mut cells = Vec::with_capacity(width);
-        for index in 0..width {
-            let sum = sum_cells(rest.iter().map(|entry| &entry.cells[index]))
-                .map_err(|_| OVERFLOW.to_string())?;
-            cells.push(Cell {
-                value: sum.known,
-                quality: sum.quality,
-            });
-        }
-        shown.push(Entry {
-            key: Vec::new(),
-            label: "Other".to_string(),
-            full_label: format!("Other ({} more)", rest.len()),
-            swatch: Swatch::Other,
-            kind: RowKind::Other,
-            value: total.known,
-            quality: total.quality,
-            cells,
-            observed: None,
-        });
-    }
-    shown.extend(unknown);
-    Ok(Ranking { shown, full })
+/// The plotted rows of the facts with their labels and swatches. Short labels
+/// depend on every collapsed group, so they come from the whole key set.
+pub fn shown_entries(facts: &CardFacts) -> Vec<Entry> {
+    let labels = display_labels(&facts.group_keys);
+    facts
+        .rows
+        .iter()
+        .map(|row| {
+            let observed = row
+                .observed
+                .map(|observed| (observed.index, observed.is_latest));
+            match &row.group {
+                Some(key) => {
+                    let unknown = row.role == RowRole::Unknown;
+                    let label = facts
+                        .group_keys
+                        .iter()
+                        .position(|candidate| candidate == key)
+                        .map_or_else(|| full_label(key), |index| labels[index].clone());
+                    Entry {
+                        full_label: full_label(key),
+                        swatch: if unknown {
+                            Swatch::Unknown
+                        } else {
+                            swatch_for(key)
+                        },
+                        kind: if unknown {
+                            RowKind::Unknown
+                        } else {
+                            RowKind::Named
+                        },
+                        label,
+                        key: key.clone(),
+                        value: row.value.clone(),
+                        quality: row.quality,
+                        cells: row.cells.clone(),
+                        breaks: row.breaks.clone(),
+                        observed,
+                    }
+                }
+                None => Entry {
+                    key: Vec::new(),
+                    label: "Other".to_string(),
+                    full_label: format!("Other ({} more)", row.members),
+                    swatch: Swatch::Other,
+                    kind: RowKind::Other,
+                    value: row.value.clone(),
+                    quality: row.quality,
+                    cells: row.cells.clone(),
+                    breaks: Vec::new(),
+                    observed,
+                },
+            }
+        })
+        .collect()
 }

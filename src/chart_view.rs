@@ -14,7 +14,7 @@ mod widget;
 pub use draw::{draw_plot, hit_test, plot_frame};
 pub use model::{
     Bar, BarSegment, ChartCardModel, Headline, LegendEntry, LineSeries, PlotModel, PlotPoint,
-    RankedRow, RowKind, build_model,
+    RankedRow, RowKind, build_model, present_card,
 };
 pub use palette::{CATEGORY_COUNT, ChartPalette, Swatch, css, swatch_for};
 pub use widget::{CardLayout, card_widget, update_card_widget};

@@ -48,6 +48,12 @@ pub fn interval_text(interval: &Interval, zone: &ChartZone) -> String {
     )
 }
 
+/// One instant in the zone, with any fractional second: where a sampled
+/// reading was taken.
+pub fn instant_text(instant: Timestamp, zone: &ChartZone) -> String {
+    exact_local_text(instant, zone)
+}
+
 /// `local_text` plus any nonzero fractional second, so sub-second interval
 /// bounds stay distinguishable in Details.
 fn exact_local_text(instant: Timestamp, zone: &ChartZone) -> String {

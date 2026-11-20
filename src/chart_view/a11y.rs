@@ -52,6 +52,7 @@ pub fn accessible_name(
     title: &str,
     unit: Option<&str>,
     dataset: Option<&ChartDataset>,
+    reading: Option<&str>,
     freshness: &str,
 ) -> String {
     let mut parts = vec![format!("{}: {title}", kind_name(kind))];
@@ -63,6 +64,9 @@ pub fn accessible_name(
             "range {}",
             range_text(&dataset.range(), dataset.timezone())
         ));
+    }
+    if let Some(reading) = reading {
+        parts.push(format!("last reading {reading}"));
     }
     parts.push(freshness.to_string());
     parts.join(", ")

@@ -6,6 +6,7 @@ use super::error::{ChartError, ChartErrorKind};
 use super::time::{ChartZone, Interval, Timestamp, parse_instant};
 use serde::de::{MapAccess, Visitor};
 use serde::{Deserialize, Deserializer};
+use serde_json::Value;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 pub const MAX_INTERVALS: usize = 2_048;
@@ -16,6 +17,27 @@ pub const MAX_VISIBLE_SERIES: usize = 16;
 const MAX_TEXT_CHARS: usize = 512;
 const MAX_NOTICES: usize = 32;
 const NATIVE_VERSION: &str = "sidescope-chart-v1";
+const NATIVE_VERSION_1_1: &str = "sidescope-chart-v1.1";
+
+/// One accepted payload version and the optional field names it adds over v1.
+/// A payload labeled with a version that does not add a name is refused when
+/// it carries that name, even as `null`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PayloadVersion {
+    pub id: &'static str,
+    pub adds: &'static [&'static str],
+}
+
+pub const NATIVE_PAYLOAD_VERSIONS: [PayloadVersion; 2] = [
+    PayloadVersion {
+        id: NATIVE_VERSION,
+        adds: &[],
+    },
+    PayloadVersion {
+        id: NATIVE_VERSION_1_1,
+        adds: &["sampled", "breaks"],
+    },
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -46,6 +68,9 @@ pub struct MetricDescriptor {
     pub quantity: Quantity,
     pub estimate: bool,
     pub unknown_contribution: UnknownContribution,
+    /// A gauge whose every value is a reading taken at its interval's start
+    /// instant (`sidescope-chart-v1.1`); the interval end only orders samples.
+    pub sampled: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,6 +84,9 @@ pub struct Series {
     pub id: String,
     pub dimensions: BTreeMap<String, String>,
     pub metrics: BTreeMap<String, Vec<Cell>>,
+    /// Per sampled metric: interval indices where the line must not connect
+    /// to the previous sample; strictly increasing, each in `1..intervals`.
+    pub breaks: BTreeMap<String, Vec<usize>>,
 }
 
 pub struct DatasetParts {
@@ -198,6 +226,22 @@ impl ChartDataset {
             {
                 return Err(invalid("series must carry exactly the declared metrics"));
             }
+            for (metric_id, breaks) in &item.breaks {
+                let sampled = metrics.iter().any(|m| &m.id == metric_id && m.sampled);
+                if !sampled {
+                    return Err(invalid("breaks belong only to a sampled metric"));
+                }
+                let ordered = breaks.windows(2).all(|pair| pair[0] < pair[1]);
+                if !ordered
+                    || breaks
+                        .iter()
+                        .any(|index| *index == 0 || *index >= intervals.len())
+                {
+                    return Err(invalid(
+                        "breaks must be strictly increasing interval indices from 1 to the count minus 1",
+                    ));
+                }
+            }
             for cells in item.metrics.values() {
                 if cells.len() != intervals.len() {
                     return Err(invalid("metric values must align with the intervals"));
@@ -213,10 +257,19 @@ impl ChartDataset {
                 }
             }
         }
+        let sampled_ids: HashSet<&str> = metrics
+            .iter()
+            .filter(|metric| metric.sampled)
+            .map(|metric| metric.id.as_str())
+            .collect();
         for (index, interval) in intervals.iter().enumerate() {
             if interval.end > request.window.end {
                 for item in &mut series {
-                    for cells in item.metrics.values_mut() {
+                    for (id, cells) in item.metrics.iter_mut() {
+                        // A reading at an instant is not an open bucket.
+                        if sampled_ids.contains(id.as_str()) {
+                            continue;
+                        }
                         if cells[index].quality == Quality::Complete {
                             cells[index].quality = Quality::Partial;
                         }
@@ -355,6 +408,8 @@ struct RawMetric {
     estimate: bool,
     #[serde(default)]
     unknown_contribution: Option<UnknownContribution>,
+    #[serde(default, deserialize_with = "present")]
+    sampled: Option<Value>,
 }
 
 #[derive(Deserialize)]
@@ -368,6 +423,14 @@ struct RawSeries {
 struct RawValues {
     values: Vec<Option<String>>,
     quality: Vec<String>,
+    #[serde(default, deserialize_with = "present")]
+    breaks: Option<Value>,
+}
+
+/// Keeps a present `null` apart from an absent key, so reserved names can be
+/// refused whatever their value.
+fn present<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Option<Value>, D::Error> {
+    Value::deserialize(deserializer).map(Some)
 }
 
 fn instant(text: &str, what: &str) -> Result<Timestamp, ChartError> {
@@ -382,7 +445,19 @@ fn data_error(error: &serde_json::Error) -> ChartError {
     }
 }
 
-/// Parses and validates `sidescope-chart-v1`; any failure refuses the whole
+fn breaks_of(raw: &Value) -> Result<Vec<usize>, ChartError> {
+    raw.as_array()
+        .ok_or_else(|| invalid("breaks must be an array of interval indices"))?
+        .iter()
+        .map(|item| {
+            item.as_u64()
+                .and_then(|index| usize::try_from(index).ok())
+                .ok_or_else(|| invalid("breaks must be nonnegative integers"))
+        })
+        .collect()
+}
+
+/// Parses and validates `sidescope-chart-v1` and `sidescope-chart-v1.1`; any failure refuses the whole
 /// snapshot.
 pub fn parse_native_snapshot(
     json: &str,
@@ -393,16 +468,17 @@ pub fn parse_native_snapshot(
             true => invalid("snapshot must be a JSON object"),
             false => data_error(&error),
         })?;
-    match probe.version.as_deref() {
-        Some(NATIVE_VERSION) => {}
+    let sampling_allowed = match probe.version.as_deref() {
+        Some(NATIVE_VERSION) => false,
+        Some(NATIVE_VERSION_1_1) => true,
         Some(_) => {
             return Err(ChartError::new(
                 ChartErrorKind::UnsupportedVersion,
-                "snapshot version is not sidescope-chart-v1",
+                "snapshot version is not sidescope-chart-v1 or sidescope-chart-v1.1",
             ));
         }
         None => return Err(invalid("snapshot has no version")),
-    }
+    };
     let raw: RawSnapshot = serde_json::from_str(json).map_err(|error| data_error(&error))?;
     if raw.intervals.len() > MAX_INTERVALS
         || raw.series.len() > MAX_SERIES
@@ -436,6 +512,18 @@ pub fn parse_native_snapshot(
         if !seen_metrics.insert(id.clone()) {
             return Err(invalid("duplicate metric id"));
         }
+        let sampled = match (&metric.sampled, sampling_allowed) {
+            (None, _) => false,
+            (Some(_), false) => {
+                return Err(invalid("sampled is reserved for sidescope-chart-v1.1"));
+            }
+            (Some(Value::Bool(true)), true) if metric.quantity == Quantity::Gauge => true,
+            (Some(Value::Bool(true)), true) => {
+                return Err(invalid("only a gauge metric can be sampled"));
+            }
+            (Some(Value::Bool(false)), true) => false,
+            (Some(_), true) => return Err(invalid("sampled must be a boolean")),
+        };
         metrics.push(MetricDescriptor {
             id,
             label: metric.label,
@@ -445,6 +533,7 @@ pub fn parse_native_snapshot(
             unknown_contribution: metric
                 .unknown_contribution
                 .unwrap_or(UnknownContribution::Unknown),
+            sampled,
         });
     }
     let mut series = Vec::with_capacity(raw.series.len());
@@ -456,7 +545,14 @@ pub fn parse_native_snapshot(
             }
         }
         let mut cells_by_metric = BTreeMap::new();
+        let mut breaks_by_metric = BTreeMap::new();
         for (id, values) in item.metrics.0 {
+            if let Some(raw_breaks) = &values.breaks {
+                if !sampling_allowed {
+                    return Err(invalid("breaks is reserved for sidescope-chart-v1.1"));
+                }
+                breaks_by_metric.insert(id.clone(), breaks_of(raw_breaks)?);
+            }
             if values.values.len() != values.quality.len() {
                 return Err(invalid("values and quality must have equal lengths"));
             }
@@ -487,6 +583,7 @@ pub fn parse_native_snapshot(
             id: item.id,
             dimensions,
             metrics: cells_by_metric,
+            breaks: breaks_by_metric,
         });
     }
     ChartDataset::new(

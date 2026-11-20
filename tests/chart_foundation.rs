@@ -1333,3 +1333,144 @@ fn errors_are_sanitized_and_classified() {
     assert_eq!(labels.len(), 12);
     assert!(all.iter().all(|kind| !kind.label().is_empty()));
 }
+
+// ---------- sidescope-chart-v1.1: sampled gauges ----------
+
+const SAMPLED: &str = "sampled-gauge.json";
+
+fn parse_sampled(json: &str, now: &str) -> Result<ChartDataset, ChartError> {
+    parse_native_snapshot(json, &request_at(now))
+}
+
+fn sampled_invalid(json: &str) {
+    let error = parse_sampled(json, "2026-11-20T12:00:00Z").unwrap_err();
+    assert_eq!(error.kind, ChartErrorKind::InvalidDataset, "{error}");
+}
+
+fn as_v1(json: &str) -> String {
+    replaced(json, "sidescope-chart-v1.1", "sidescope-chart-v1")
+}
+
+#[test]
+fn a_v1_1_sampled_fixture_parses_and_keeps_its_breaks() {
+    let dataset = parse_fixture(SAMPLED, "2026-11-20T12:00:00Z").unwrap();
+    assert!(dataset.metric("observed_percent").unwrap().sampled);
+    let series = &dataset.series()[0];
+    assert_eq!(series.breaks["observed_percent"], vec![1]);
+    let cells = &series.metrics["observed_percent"];
+    assert_eq!(cells[1].quality, Quality::Complete);
+}
+
+#[test]
+fn a_sampled_metric_is_not_downgraded_at_the_right_edge_but_others_still_are() {
+    // The request ends at 11:30: only the second interval ends after it.
+    let sampled = parse_sampled(&fixture(SAMPLED), "2026-11-20T11:30:00Z").unwrap();
+    let cells = &sampled.series()[0].metrics["observed_percent"];
+    assert!(cells.iter().all(|cell| cell.quality == Quality::Complete));
+    let unsampled = replaced(&fixture(SAMPLED), ",\"sampled\":true", "");
+    let unsampled = replaced(&unsampled, ",\"breaks\":[1]", "");
+    let dataset = parse_sampled(&unsampled, "2026-11-20T11:30:00Z").unwrap();
+    let cells = &dataset.series()[0].metrics["observed_percent"];
+    assert_eq!(cells[0].quality, Quality::Complete);
+    assert_eq!(cells[1].quality, Quality::Partial);
+}
+
+#[test]
+fn reserved_names_are_refused_under_v1_even_when_null_or_false() {
+    sampled_invalid(&as_v1(&fixture(SAMPLED)));
+    sampled_invalid(&as_v1(&replaced(
+        &fixture(SAMPLED),
+        "\"sampled\":true",
+        "\"sampled\":null",
+    )));
+    sampled_invalid(&as_v1(&replaced(
+        &fixture(SAMPLED),
+        "\"sampled\":true",
+        "\"sampled\":false",
+    )));
+    // `breaks` alone, even null, is just as reserved.
+    let breaks_only = replaced(&fixture(SAMPLED), ",\"sampled\":true", "");
+    sampled_invalid(&as_v1(&breaks_only));
+    sampled_invalid(&as_v1(&replaced(
+        &breaks_only,
+        "\"breaks\":[1]",
+        "\"breaks\":null",
+    )));
+}
+
+#[test]
+fn other_unknown_optional_fields_and_versions_behave_as_before() {
+    let future = mutated(
+        "minimal.json",
+        "\"notices\"",
+        "\"future_field\":1,\"notices\"",
+    );
+    assert!(parse_sampled(&future, "2026-11-20T12:02:10Z").is_ok());
+    let v12 = replaced(
+        &fixture(SAMPLED),
+        "sidescope-chart-v1.1",
+        "sidescope-chart-v1.2",
+    );
+    let error = parse_sampled(&v12, "2026-11-20T12:00:00Z").unwrap_err();
+    assert_eq!(error.kind, ChartErrorKind::UnsupportedVersion);
+}
+
+#[test]
+fn invalid_v1_1_sampled_and_breaks_forms_refuse_the_whole_answer() {
+    let base = fixture(SAMPLED);
+    for sampled in ["\"true\"", "null", "1", "\"yes\""] {
+        sampled_invalid(&replaced(
+            &base,
+            "\"sampled\":true",
+            &format!("\"sampled\":{sampled}"),
+        ));
+    }
+    sampled_invalid(&replaced(
+        &base,
+        "\"quantity\":\"gauge\"",
+        "\"quantity\":\"interval_total\"",
+    ));
+    for breaks in [
+        "null", "[0]", "[2]", "[1,1]", "[2,1]", "[1.0]", "[\"1\"]", "[-1]", "1", "{}",
+    ] {
+        sampled_invalid(&replaced(
+            &base,
+            "\"breaks\":[1]",
+            &format!("\"breaks\":{breaks}"),
+        ));
+    }
+    // `breaks` beside a metric that is not sampled.
+    sampled_invalid(&replaced(&base, ",\"sampled\":true", ",\"sampled\":false"));
+    sampled_invalid(&replaced(&base, ",\"sampled\":true", ""));
+}
+
+#[test]
+fn an_empty_breaks_list_and_sampled_false_without_breaks_are_valid_in_v1_1() {
+    let base = fixture(SAMPLED);
+    assert!(
+        parse_sampled(
+            &replaced(&base, "\"breaks\":[1]", "\"breaks\":[]"),
+            "2026-11-20T12:00:00Z"
+        )
+        .is_ok()
+    );
+    let plain = replaced(
+        &replaced(&base, ",\"breaks\":[1]", ""),
+        "\"sampled\":true",
+        "\"sampled\":false",
+    );
+    let dataset = parse_sampled(&plain, "2026-11-20T12:00:00Z").unwrap();
+    assert!(!dataset.metric("observed_percent").unwrap().sampled);
+}
+
+#[test]
+fn the_payload_version_table_lists_both_ids_and_what_v1_1_adds() {
+    use sidescope::chart::dataset::NATIVE_PAYLOAD_VERSIONS;
+    let ids: Vec<&str> = NATIVE_PAYLOAD_VERSIONS
+        .iter()
+        .map(|version| version.id)
+        .collect();
+    assert_eq!(ids, ["sidescope-chart-v1", "sidescope-chart-v1.1"]);
+    assert!(NATIVE_PAYLOAD_VERSIONS[0].adds.is_empty());
+    assert_eq!(NATIVE_PAYLOAD_VERSIONS[1].adds, ["sampled", "breaks"]);
+}

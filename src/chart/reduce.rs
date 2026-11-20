@@ -94,7 +94,13 @@ pub fn last_known(cells: &[Cell]) -> Option<LastKnown> {
 pub struct GroupedSeries {
     pub key: Vec<(String, String)>,
     pub cells: Vec<Cell>,
+    /// Interval indices where a sampled line does not connect to the sample
+    /// before it. Only a group of exactly one sampled series has any.
+    pub breaks: Vec<usize>,
 }
+
+/// One series of a group: its cells and sampled breaks.
+type Member<'a> = (&'a [Cell], &'a [usize]);
 
 /// Retain only `group_by` dimensions; series sharing a retained tuple merge by
 /// per-interval `sum_cells`. Empty `group_by` merges everything. An absent
@@ -110,7 +116,7 @@ pub fn collapse_series(
             "the source does not provide the requested metric",
         ));
     }
-    let mut groups: BTreeMap<Vec<(String, String)>, Vec<&[Cell]>> = BTreeMap::new();
+    let mut groups: BTreeMap<Vec<(String, String)>, Vec<Member>> = BTreeMap::new();
     for series in dataset.series() {
         let mut key = Vec::with_capacity(group_by.len());
         for name in group_by {
@@ -125,7 +131,8 @@ pub fn collapse_series(
         let cells = series.metrics.get(metric).ok_or_else(|| {
             ChartError::new(ChartErrorKind::CardMismatch, "series lacks the metric")
         })?;
-        groups.entry(key).or_default().push(cells);
+        let breaks = series.breaks.get(metric).map_or(&[][..], Vec::as_slice);
+        groups.entry(key).or_default().push((cells, breaks));
     }
     let width = dataset.intervals().len();
     groups
@@ -133,17 +140,20 @@ pub fn collapse_series(
         .map(|(key, members)| {
             let cells = (0..width)
                 .map(|index| {
-                    let sum =
-                        sum_cells(members.iter().map(|cells| &cells[index])).map_err(|_| {
-                            ChartError::new(ChartErrorKind::InvalidDataset, "sum overflow")
-                        })?;
+                    let sum = sum_cells(members.iter().map(|(cells, _)| &cells[index])).map_err(
+                        |_| ChartError::new(ChartErrorKind::InvalidDataset, "sum overflow"),
+                    )?;
                     Ok(Cell {
                         value: sum.known,
                         quality: sum.quality,
                     })
                 })
                 .collect::<Result<Vec<_>, ChartError>>()?;
-            Ok(GroupedSeries { key, cells })
+            let breaks = match members.as_slice() {
+                [(_, breaks)] => breaks.to_vec(),
+                _ => Vec::new(),
+            };
+            Ok(GroupedSeries { key, cells, breaks })
         })
         .collect()
 }

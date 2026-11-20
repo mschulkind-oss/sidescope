@@ -1525,3 +1525,155 @@ fn capture_to(surface: &mut ImageSurface, name: &str, width: i32) {
     )
     .unwrap();
 }
+
+// ---------- sampled gauges (sidescope-chart-v1.1) and new outcomes ----------
+
+fn sampled_card(kind: ChartKind) -> ChartCardConfig {
+    card(kind, "observed_percent")
+}
+
+fn sampled_with(replacements: &[(&str, &str)]) -> SourceSnapshot {
+    let mut json = fixture("sampled-gauge.json");
+    for (old, new) in replacements {
+        assert!(json.contains(old), "{old}");
+        json = json.replacen(old, new, 1);
+    }
+    snapshot_json(&json)
+}
+
+#[test]
+fn a_sampled_gauge_headline_is_a_last_observed_instant_never_current() {
+    let model = model_at(
+        &sampled_card(ChartKind::TimeSeries),
+        &fixture_snapshot("sampled-gauge.json"),
+    );
+    let headline = model.headline().unwrap();
+    assert_eq!(headline.label, "Last observed");
+    assert_eq!(headline.value, "13.00%");
+    assert_eq!(
+        headline.note.as_deref(),
+        Some("as of 2026-11-20 11:15:00 +00:00")
+    );
+    let text = format!("{headline:?}{:?}", model.badges());
+    assert!(!text.contains("so far") && !text.contains("Latest") && !text.contains("current"));
+}
+
+#[test]
+fn a_sampled_headline_marks_an_incomplete_reading_and_a_null_newest() {
+    let partial = sampled_with(&[(
+        "\"quality\":[\"complete\",\"complete\"]",
+        "\"quality\":[\"complete\",\"partial\"]",
+    )]);
+    let model = model_at(&sampled_card(ChartKind::TimeSeries), &partial);
+    assert_eq!(
+        model.headline().unwrap().label,
+        "Last observed · incomplete"
+    );
+    let newest_null = sampled_with(&[
+        ("\"values\":[\"12.5\",\"13\"]", "\"values\":[\"12.5\",null]"),
+        (
+            "\"quality\":[\"complete\",\"complete\"]",
+            "\"quality\":[\"complete\",\"missing\"]",
+        ),
+    ]);
+    let headline = model_at(&sampled_card(ChartKind::TimeSeries), &newest_null)
+        .headline()
+        .cloned()
+        .unwrap();
+    assert_eq!(headline.value, "12.50%");
+    assert_eq!(
+        headline.note.as_deref(),
+        Some("as of 2026-11-20 11:00:00 +00:00 · newest reading was not reported")
+    );
+}
+
+#[test]
+fn sampled_lines_plot_at_the_start_instant_and_split_at_declared_breaks() {
+    let model = model_at(
+        &sampled_card(ChartKind::TimeSeries),
+        &fixture_snapshot("sampled-gauge.json"),
+    );
+    let PlotModel::Lines { series, axes } = model.plot() else {
+        panic!("expected lines");
+    };
+    // Range 11:00-12:00: the readings are at 11:00 and 11:15, not at midpoints.
+    assert_eq!(axes.centers, vec![0.0, 0.25]);
+    assert_eq!(series[0].segments.len(), 2, "the break splits the line");
+    assert_eq!(series[0].segments[0][0].x, 0.0);
+    assert_eq!(series[0].segments[1][0].x, 0.25);
+    // Without the break the same readings are one connected segment.
+    let joined = sampled_with(&[(",\"breaks\":[1]", "")]);
+    let model = model_at(&sampled_card(ChartKind::TimeSeries), &joined);
+    let PlotModel::Lines { series, .. } = model.plot() else {
+        panic!("expected lines");
+    };
+    assert_eq!(series[0].segments.len(), 1);
+}
+
+#[test]
+fn sampled_details_and_readouts_give_the_instant_and_never_so_far() {
+    // The request ends before the second interval does; a reading is still complete.
+    let model = model_at(
+        &sampled_card(ChartKind::TimeSeries),
+        &fixture_snapshot("sampled-gauge.json"),
+    );
+    let rows = model.table_rows();
+    assert_eq!(rows[0][0], "2026-11-20 11:00:00 +00:00");
+    assert_eq!(rows[1][0], "2026-11-20 11:15:00 +00:00");
+    assert_eq!(rows[1][3], "complete");
+    assert!(
+        model
+            .selection_readout(1)
+            .unwrap()
+            .starts_with("2026-11-20 11:15:00 +00:00")
+    );
+    assert!(
+        model
+            .accessible_name()
+            .contains("last reading 2026-11-20 11:15:00 +00:00")
+    );
+}
+
+#[test]
+fn a_sampled_metric_cannot_be_drawn_as_time_bars() {
+    let model = model_at(
+        &sampled_card(ChartKind::TimeBars),
+        &fixture_snapshot("sampled-gauge.json"),
+    );
+    assert!(model.message().unwrap().starts_with("Card mismatch"));
+    assert_eq!(model.plot(), &PlotModel::Empty);
+}
+
+#[test]
+fn series_without_intervals_say_so_instead_of_no_known_values() {
+    let json = fixture("minimal.json");
+    let value: Value = serde_json::from_str(&json).unwrap();
+    let mut empty = value.clone();
+    empty["intervals"] = json!([]);
+    for series in empty["series"].as_array_mut().unwrap() {
+        for metric in series["metrics"].as_object_mut().unwrap().values_mut() {
+            metric["values"] = json!([]);
+            metric["quality"] = json!([]);
+        }
+    }
+    let snapshot = snapshot_json(&empty.to_string());
+    let metric = value["metrics"]
+        .as_object()
+        .unwrap()
+        .keys()
+        .next()
+        .unwrap()
+        .clone();
+    for kind in [
+        ChartKind::TimeSeries,
+        ChartKind::TimeBars,
+        ChartKind::RankedBars,
+    ] {
+        let model = model_at(&card(kind, &metric), &snapshot);
+        assert_eq!(
+            model.message(),
+            Some("No intervals in this range"),
+            "{kind:?}"
+        );
+    }
+}

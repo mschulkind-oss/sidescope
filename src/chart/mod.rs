@@ -6,6 +6,7 @@ pub mod config;
 pub mod dataset;
 pub mod decimal;
 pub mod error;
+pub mod facts;
 pub mod geometry;
 pub mod reduce;
 pub mod state;

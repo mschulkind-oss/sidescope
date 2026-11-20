@@ -92,6 +92,43 @@ fn column<'a>(group: &'a Value, pointer: &str, key: &str) -> Result<Column<'a>, 
     }
 }
 
+/// An omitted leaf may be read as the declared zero only when its immediate
+/// parent really exists as a container: an object (any token, the empty key
+/// included) or an array (a canonical numeric index only). A missing, `null`
+/// or scalar parent, or a non-index token against an array, is a wrong shape,
+/// never an omitted optional leaf. A pointer whose parent is the group itself
+/// is unchanged.
+fn require_container_parent(group: &Value, pointer: &str, key: &str) -> Result<(), ChartError> {
+    // A `/` inside a token is always written `~1`, so the last literal `/`
+    // separates the leaf token from its parent pointer.
+    let Some((parent_pointer, leaf)) = pointer.rsplit_once('/') else {
+        return Ok(());
+    };
+    if parent_pointer.is_empty() {
+        return Ok(());
+    }
+    match group.pointer(parent_pointer) {
+        Some(Value::Object(_)) => Ok(()),
+        Some(Value::Array(_)) => {
+            let canonical = leaf == "0"
+                || (leaf.starts_with(|c: char| c.is_ascii_digit() && c != '0')
+                    && leaf.chars().all(|c| c.is_ascii_digit()));
+            if canonical && leaf.parse::<usize>().is_ok() {
+                Ok(())
+            } else {
+                Err(mapping_error(
+                    key,
+                    "pointer names a non-index token inside an array",
+                ))
+            }
+        }
+        _ => Err(mapping_error(
+            key,
+            "pointer's parent is missing or not an object or array",
+        )),
+    }
+}
+
 fn decimal_cell(value: &Value, key: &str) -> Result<Option<ChartDecimal>, ChartError> {
     let text = match value {
         Value::Null => return Ok(None),
@@ -128,7 +165,10 @@ fn counter_cells(
     let key = format!("mapping.metrics.{}.quality_counter", metric.id);
     match column(group, pointer, &key)? {
         Column::Absent => Ok(Counter::Known(match metric.omitted {
-            OmittedPolicy::Zero => vec![Some(0); buckets],
+            OmittedPolicy::Zero => {
+                require_container_parent(group, pointer, &key)?;
+                vec![Some(0); buckets]
+            }
             OmittedPolicy::Missing => vec![None; buckets],
         })),
         Column::Null => Ok(Counter::Known(vec![None; buckets])),
@@ -162,7 +202,10 @@ fn metric_cells(
     let key = format!("mapping.metrics.{}.values", metric.id);
     let values: Vec<Option<ChartDecimal>> = match column(group, &metric.values, &key)? {
         Column::Absent => match metric.omitted {
-            OmittedPolicy::Zero => vec![Some(ChartDecimal::zero()); buckets],
+            OmittedPolicy::Zero => {
+                require_container_parent(group, &metric.values, &key)?;
+                vec![Some(ChartDecimal::zero()); buckets]
+            }
             OmittedPolicy::Missing => vec![None; buckets],
         },
         Column::Null => vec![None; buckets],
@@ -284,6 +327,7 @@ pub fn map_columns(
             unknown_contribution: metric
                 .unknown_contribution
                 .unwrap_or(UnknownContribution::Unknown),
+            sampled: false,
         })
         .collect();
     let series = group_items
@@ -319,6 +363,7 @@ pub fn map_columns(
                 id: serde_json::to_string(&tuple).unwrap_or_default(),
                 dimensions,
                 metrics: by_metric,
+                breaks: BTreeMap::new(),
             })
         })
         .collect::<Result<Vec<_>, ChartError>>()?;
