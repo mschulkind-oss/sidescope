@@ -3,6 +3,10 @@ use std::{
     io::{ErrorKind, Read},
     os::{fd::AsRawFd, unix::process::CommandExt},
     process::{Child, Command, ExitStatus, Stdio},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Duration, Instant},
 };
 const OUTPUT_LIMIT: usize = 1_048_576;
@@ -69,45 +73,141 @@ impl Drop for SourceProcess {
     }
 }
 
-pub fn output(command: &mut Command, timeout: Duration) -> Result<String, String> {
+/// Cooperative cancellation shared between a requester and a running command.
+#[derive(Debug, Clone, Default)]
+pub struct CancelToken(Arc<AtomicBool>);
+
+impl CancelToken {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}
+
+/// Capture bounds. A zero `stderr` limit sends stderr to `/dev/null`;
+/// otherwise stderr is drained completely and only its first bytes are kept.
+#[derive(Debug, Clone, Copy)]
+pub struct CaptureLimits {
+    pub stdout: usize,
+    pub stderr: usize,
+    pub timeout: Duration,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Captured {
+    pub stdout: String,
+    /// Lossy UTF-8 of at most `CaptureLimits::stderr` leading bytes.
+    pub stderr: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunFailure {
+    MissingExecutable,
+    SpawnFailed,
+    Timeout,
+    OutputBound,
+    NonzeroExit(Option<i32>),
+    NotUtf8,
+    Cancelled,
+}
+
+fn drain_pipe(pipe: &mut impl Read, keep: &mut Vec<u8>, limit: usize) {
+    // Bounded per pass so a flooding child cannot starve the deadline check.
+    let mut buffer = [0u8; 8192];
+    for _ in 0..32 {
+        match pipe.read(&mut buffer) {
+            Ok(n) if n > 0 => {
+                let room = limit.saturating_sub(keep.len());
+                keep.extend_from_slice(&buffer[..n.min(room)]);
+            }
+            Err(error) if error.kind() == ErrorKind::Interrupted => {}
+            _ => return,
+        }
+    }
+}
+
+fn set_nonblocking(fd: i32) -> bool {
+    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
+    flags >= 0 && unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } >= 0
+}
+
+/// Runs `command` in its own process group under the given bounds. Timeout,
+/// cancellation, overflow and failure stop the whole group and reap the child.
+/// The child is killed if the spawning thread dies (`PR_SET_PDEATHSIG`), so
+/// call this from a thread that outlives the command.
+pub fn run_bounded(
+    command: &mut Command,
+    limits: &CaptureLimits,
+    cancel: &CancelToken,
+) -> Result<Captured, RunFailure> {
     let start = Instant::now();
-    let child = command
+    command
         .process_group(0)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
-        .spawn()
-        .map_err(|_| "Cannot start data source process")?;
+        .stderr(if limits.stderr > 0 {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        });
+    // SAFETY: prctl is async-signal-safe and runs between fork and exec.
+    unsafe {
+        command.pre_exec(|| {
+            libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL as libc::c_ulong);
+            Ok(())
+        });
+    }
+    let child = command.spawn().map_err(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            RunFailure::MissingExecutable
+        } else {
+            RunFailure::SpawnFailed
+        }
+    })?;
     let mut process = SourceProcess {
         child,
         terminated: false,
         status: None,
     };
-    let mut stdout = process
-        .child
-        .stdout
-        .take()
-        .ok_or("Missing process output")?;
-    let fd = stdout.as_raw_fd();
-    // stdout owns a valid pipe FD. Nonblocking reads let the same deadline govern
-    // both process execution and descendants holding the pipe after leader exit.
-    let flags = unsafe { libc::fcntl(fd, libc::F_GETFL) };
-    if flags < 0 || unsafe { libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) } < 0 {
-        return Err("Cannot configure data source output pipe".into());
+    let mut stdout = process.child.stdout.take().ok_or(RunFailure::SpawnFailed)?;
+    let mut stderr = process.child.stderr.take();
+    // Nonblocking reads let the same deadline govern both process execution and
+    // descendants holding a pipe after the leader exits.
+    if !set_nonblocking(stdout.as_raw_fd())
+        || stderr
+            .as_ref()
+            .is_some_and(|pipe| !set_nonblocking(pipe.as_raw_fd()))
+    {
+        return Err(RunFailure::SpawnFailed);
     }
     let mut bytes = Vec::new();
+    let mut stderr_bytes = Vec::new();
     let mut buffer = [0u8; 8192];
     loop {
-        if start.elapsed() >= timeout {
-            return Err("Data source timed out".into());
+        if cancel.is_cancelled() {
+            return Err(RunFailure::Cancelled);
         }
-        let status = process.status()?;
-        if status.is_some_and(|s| !s.success()) {
-            return Err("Data source failed (network, permission or rate limit); retry at next scheduled refresh".into());
+        if start.elapsed() >= limits.timeout {
+            return Err(RunFailure::Timeout);
+        }
+        let status = process.status().map_err(|_| RunFailure::SpawnFailed)?;
+        if let Some(status) = status.filter(|s| !s.success()) {
+            return Err(RunFailure::NonzeroExit(status.code()));
+        }
+        if let Some(pipe) = stderr.as_mut() {
+            drain_pipe(pipe, &mut stderr_bytes, limits.stderr);
         }
         match stdout.read(&mut buffer) {
             Ok(n) if n > 0 => {
-                if n > OUTPUT_LIMIT - bytes.len() {
-                    return Err("Data source output exceeds 1 MiB".into());
+                if n > limits.stdout - bytes.len() {
+                    return Err(RunFailure::OutputBound);
                 }
                 bytes.extend_from_slice(&buffer[..n]);
                 continue;
@@ -115,15 +215,48 @@ pub fn output(command: &mut Command, timeout: Duration) -> Result<String, String
             Ok(_) => {}
             Err(error) if error.kind() == ErrorKind::WouldBlock => {}
             Err(error) if error.kind() == ErrorKind::Interrupted => continue,
-            Err(_) => return Err("Cannot read data source output".into()),
+            Err(_) => return Err(RunFailure::SpawnFailed),
         }
         if status.is_some() {
             // The group has been stopped. Keep all buffered successful output,
-            // then close the pipe rather than wait for an escaped pipe holder.
-            return String::from_utf8(bytes).map_err(|_| "Data source output is not UTF-8".into());
+            // then close the pipes rather than wait for an escaped pipe holder.
+            if let Some(pipe) = stderr.as_mut() {
+                drain_pipe(pipe, &mut stderr_bytes, limits.stderr);
+            }
+            return Ok(Captured {
+                stdout: String::from_utf8(bytes).map_err(|_| RunFailure::NotUtf8)?,
+                stderr: String::from_utf8_lossy(&stderr_bytes).into_owned(),
+            });
         }
-        std::thread::sleep(Duration::from_millis(20).min(timeout.saturating_sub(start.elapsed())));
+        std::thread::sleep(
+            Duration::from_millis(20).min(limits.timeout.saturating_sub(start.elapsed())),
+        );
     }
+}
+
+pub fn output(command: &mut Command, timeout: Duration) -> Result<String, String> {
+    let limits = CaptureLimits {
+        stdout: OUTPUT_LIMIT,
+        stderr: 0,
+        timeout,
+    };
+    run_bounded(command, &limits, &CancelToken::new())
+        .map(|captured| captured.stdout)
+        .map_err(|failure| {
+            match failure {
+                RunFailure::MissingExecutable | RunFailure::SpawnFailed => {
+                    "Cannot start data source process"
+                }
+                RunFailure::Timeout => "Data source timed out",
+                RunFailure::OutputBound => "Data source output exceeds 1 MiB",
+                RunFailure::NonzeroExit(_) => {
+                    "Data source failed (network, permission or rate limit); retry at next scheduled refresh"
+                }
+                RunFailure::NotUtf8 => "Data source output is not UTF-8",
+                RunFailure::Cancelled => "Data source was cancelled",
+            }
+            .into()
+        })
 }
 
 fn curl_command(url: &str) -> Command {
