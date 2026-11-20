@@ -1,23 +1,26 @@
 ---
 title: "Command-driven charts QA"
 date: 2026-11-20
-status: accepted
-stage: DECIDED
+status: in-review
+stage: BUILT
+next: "Host-live verification with the real collector and a screen reader; investigate the unexplained first visual-suite failure"
 tags: [qa, charts]
+summary: "Gates, every red run and repair, review sequence, captures inspected, and what remains unverified for the command-driven charts; synthetic data only."
 ---
 
 # Command-driven charts QA
 
-Integration of the command-driven charts ([design](../design/command-charts.md), [plan](../design/command-charts-plan.md), [tasks](../tasks/command-charts.md)). Everything below used synthetic commands and fixtures; **no real agent-activity ledger, account or credential was read.**
+Integration of the command-driven charts, documented in the [reference](../reference/command-charts/README.md); open work is in the [tasks](../tasks/command-charts.md). Everything below used synthetic commands and fixtures; **no real agent-activity ledger, account or credential was read.**
 
-## Gates run
+## Gates run at the initial integration (`e86379e`)
+
+The final results at `14fb83d` are in [the final state](#final-state-at-14fb83d); the counts below are the earlier ones.
 
 | Command | Result |
 | :--- | :--- |
 | `just format`, `just check-ci` (fmt, clippy `-D warnings`, all cargo suites, dev-tool/watch/deploy/release shell tests) | passed after the repairs below; suites: lib 89, bin 29, `chart_foundation` 41, `chart_integration` 4, `chart_mapping` 31, `chart_runtime` 35, `chart_view` 41, `cli` 8 |
 | `just test-visual` (private headless Sway: 21 themes, density, all existing suites, then `scripts/visual-charts.sh`) | **exit 0** on the third full run (logs were kept outside the repository) |
 | `SIDESCOPE_VISUAL_CHARTS_ONLY=1 just test-visual` after the final script hardening | exit 0 |
-| `uvx vantage-check` on the changed documents | see the final section |
 
 ## Red runs, causes and repairs
 
@@ -59,7 +62,7 @@ The review blocked completion with six P1 and eight P2 findings. Each software b
 | P1 native `bounded_percent` bypassed the unit check | card-level "Card mismatch" unless the metric unit is `percent`; the source stays published | `chart_view_repair` (red) |
 | P1 ranked gauges hid older observations | ranking keeps the observed interval; rows say "last known", Details shows the actual interval, readout names it | `chart_view_repair` (red) |
 | P1 profile dropped the coverage statement | all four profile sources map `/coverage/statement` to notices; synthetic fixtures carry a synthetic statement; Info shows it | `chart_mapping` (red) and `chart_integration` (Info line) |
-| P1 producer "unknown" model fell into Other | new generic mapping key `unknown_value` per dimension (rule R16 in the plan, design paragraph); the profile sets it for the model dimension; series identity keeps the raw text | `chart_mapping` (red), `chart_view_repair` (Unknown below the top-N cut stays its own row) |
+| P1 producer "unknown" model fell into Other | new generic mapping key `unknown_value` per dimension (rule R16, described in the reference); the profile sets it for the model dimension; series identity keeps the raw text | `chart_mapping` (red), `chart_view_repair` (Unknown below the top-N cut stays its own row) |
 | P2 time bars ignored `group_by` | card-level mismatch naming `stack_by`/`group_by` unless they agree; the profile's `stack_by` cards are unchanged | `chart_view_repair` (red) |
 | P2 tiny negative headline lost its sign | `>-0.0001` versus `<0.0001` | `chart_view_repair` (red) |
 | P2 fractional seconds dropped in Details | interval text keeps nonzero fractions; Info timestamps stay whole seconds | `chart_view_repair` (red) |
@@ -73,7 +76,7 @@ Results: `just format` then `just check-ci` exit 0 (lib 89, bin 30, foundation 4
 
 The first-full-run visual failure remains **unproven**: the earlier green runs only show it is not deterministic, and the key-resend hardening is a mitigation, not a proven fix.
 
-Next gate: a second independent review of this repair commit. This record is not a graduation of the charts documents.
+The review repair round was then independently verified; see the next section.
 
 ## Verification round: two repairs found partial
 
@@ -84,6 +87,30 @@ An independent verification of the repair commit resolved twelve findings and bl
 
 The tests prove the write preceded termination through the marker rather than a sleep, and repeat (25 cancellation rounds, 10 timeout rounds) because the pre-fix race is probabilistic; with the fix the outcome is deterministic.
 
-Still true: the first full-run visual failure is unproven (green reruns do not establish its cause); host-live collector behavior, screen-reader text, other compositors and a wall-clock midnight run are unverified; the midnight deferral and original stderr-on-failure tests had no historical red run. Next gate: parent verification of these two corrections. No graduation of the charts documents.
+Still true after this round: the first full-run visual failure is unproven (green reruns do not establish its cause); host-live collector behavior, screen-reader text, other compositors and a wall-clock midnight run are unverified; the midnight deferral and original stderr-on-failure tests had no historical red run.
 
 Final results for this round: `just format` then `just check-ci` exit 0 (lib 89, bin 30, foundation 41, integration 4, mapping 33, runtime 41, view 41, view-repair 11, cli 8, shell suites). The chart-only compositor suite exited 0; the many-series ranking capture (five rows plus Other for 20 groups) is unchanged at 640 px.
+
+## Review sequence and acceptance
+
+The actual sequence, without compression:
+
+1. `e86379e` passed the full gates (above) on its third full visual run.
+2. An independent review of `e86379e` found six P1 and eight P2 issues.
+3. `e78d8ac` repaired all fourteen. The original reviewer verified twelve as resolved and found two only partly repaired: ranked-plot capacity and buffered stderr at timeout and cancellation.
+4. `14fb83d` repaired those two (red-first for both; see the previous section).
+5. **No final reviewer verdict exists for `14fb83d`.** The two corrections were accepted by the parent session instead: it read the 229-line diff directly, reran `chart_view_repair` (11 of 11) and the two `stderr_written` tests of `chart_runtime` (2 of 2), then compiled a separate probe against the public runner and ran three near-deadline diagnostics. Each used a fresh marker file created only after the stderr write returned, which proved the write preceded termination, and each finished near its one-second deadline (about 1.0009 s, 1.0173 s, and 1.0017 s). The probe and its log are retained outside the repository.
+6. The worker's final full `just check-ci` and chart-only compositor suite at `14fb83d` passed (below). The independent review was not repeated over the whole range: the initial review, the bounded repair verification, and the parent's direct acceptance are the evidence.
+
+## Final state at `14fb83d`
+
+| Command | Result |
+| :--- | :--- |
+| `just format`, then `just check-ci` | passed; 298 Rust tests: lib 89, bin 30, `chart_foundation` 41, `chart_integration` 4, `chart_mapping` 33, `chart_runtime` 41, `chart_view` 41, `chart_view_repair` 11, `cli` 8, plus the dev-tool, watch, deploy, and release shell suites |
+| `SIDESCOPE_VISUAL_CHARTS_ONLY=1 just test-visual` | exit 0 |
+
+The full 21-theme and density sweep was not rerun after the repair commits; nothing outside chart cards and chart-only styles changed, and the existing suites do not render charts. The documentation stage changed no source, Cargo, or fixture file.
+
+## Not verified, and where it is routed
+
+Everything in [not verified](#not-verified) and the unproven first visual failure remains open and is tracked in the [task list](../tasks/command-charts.md) and the [roadmap](../../roadmap.md). In short: the owner's real collector and desktop, screen-reader announcement text, SIGKILL cleanup of descendants, other compositors' Details placement, a wall-clock midnight run, and a historical red run for the midnight deferral and the first stderr repair. No before/after release size was measured, and none is claimed. Do not read any green rerun as erasing the red first run: its cause is unknown, and the second red run was a test-context error (`GTK_A11Y=none`), not a product defect.

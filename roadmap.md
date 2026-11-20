@@ -20,7 +20,7 @@ This is a routing table, not a feature catalog or a progress log. Details live i
 
 ## Command-driven charts
 
-1. [Review reusable CLI charts](docs/tasks/command-charts.md) — built and synthetic-verified per the [design](docs/design/command-charts.md) and [plan](docs/design/command-charts-plan.md); see the [QA record](docs/qa/command-charts.md) for what is unverified, and the [agent-activity requests](docs/requests/agent-activity-charts.md) (proposed, not delivered).
+1. [Verify command charts on the host](docs/tasks/command-charts.md) — the charts are built and verified only with synthetic commands (see the [reference](docs/reference/command-charts/README.md)); the owner's real collector, desktop, and screen reader, plus one unexplained visual-suite failure, are still open in the [QA record](docs/qa/command-charts.md#not-verified). The [agent-activity requests](docs/requests/agent-activity-charts.md) are proposed, not delivered, and block nothing.
 
 ## ▶️ Actionable
 
@@ -48,7 +48,7 @@ No immediate ruling blocks the design work. The two live questions in the [desig
 
 | Candidate | Revisit when |
 | --- | --- |
-| Compiled third-party widget plugins | Revisit only if the [command-driven chart contract](docs/design/command-charts.md) cannot serve a concrete source or interaction |
+| Compiled third-party widget plugins | Revisit only if the [command-driven chart contract](docs/reference/command-charts/README.md) cannot serve a concrete source or interaction |
 | [Compositor-dependent edge panel](docs/research/wayland-sidebar.md#workspace-only-appearance-without-a-layer-surface) | The owner wants an output-wide panel or accepts workspace tracking; a one-workspace dashboard fits an undecorated tiled window better |
 
 ## What this file does not cover

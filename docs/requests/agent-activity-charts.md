@@ -14,7 +14,7 @@ vantage:
 
 ## 1. Summary and non-blocking promise
 
-Sidescope's [command-charts design](../design/command-charts.md) draws time-series and ranked charts from any local command. Its first example reads `agent-activity ledger series --format json --layout columns`. **The current CLI is sufficient for those first charts**: Sidescope will ship a profile that works with today's output, and an owner-written wrapper can fill any gap. No request here is a prerequisite for building, testing, or releasing Sidescope's charts.
+Sidescope's [command-charts reference](../reference/command-charts/README.md) describes how it draws time-series and ranked charts from any local command. Its first example reads `agent-activity ledger series --format json --layout columns`. **The current CLI is sufficient for those first charts**: Sidescope will ship a profile that works with today's output, and an owner-written wrapper can fill any gap. No request here is a prerequisite for building, testing, or releasing Sidescope's charts.
 
 The requests remove guesswork a consumer currently resolves by convention. They do not ask `agent-activity` to emit a Sidescope-specific format, draw anything, or integrate with GTK. Every proposed field is additive and optional.
 
@@ -132,7 +132,7 @@ Minute buckets align the requested start down to `09:01:00` and the requested en
 }
 ```
 
-`quantity` is `interval_total` (accrued within the bucket, reducible by sum) or `gauge`. Both are defined in the [design's data model](../design/command-charts.md#3-data-model-before-transport). The descriptor needs no Sidescope vocabulary; it names units and meanings that any chart consumer needs.
+`quantity` is `interval_total` (accrued within the bucket, reducible by sum) or `gauge`. Both are defined in the [dataset contract](../reference/command-charts/dataset-and-mapping.md#the-native-answer). The descriptor needs no Sidescope vocabulary; it names units and meanings that any chart consumer needs.
 
 ### R4. Synthetic golden compatibility fixtures
 

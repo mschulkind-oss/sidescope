@@ -162,7 +162,7 @@ group_by = ["project"]
 
 What a card tells you, whatever the source: the range and bucket, the unit, whether a total is **incomplete** (a known subtotal that leaves out something unknown; only a source that declares its unknown contributions nonnegative is shown as "At least" a lower bound, drawn hatched and starred), whether the current day is still open (**so far**), and how fresh the answer is. Missing data is never drawn as zero. **Details** lists every value with its exact interval and quality; **Info** shows the executable name, last attempt and success, next retry, latency and request window. Focus a plot and press Left/Right, Home/End to inspect a point, Enter to open Details, Esc to close it. Quit with Sidescope's window or SIGTERM and every command it started is stopped.
 
-Ready-made, synthetic examples live in [`examples/charts/`](../examples/charts/README.md): two POSIX shell sources in the native format, and an opt-in profile for an agent-spend ledger that uses the generic `columns-v1` mapper. The profile's cards are labeled a **list-price estimate**, never an invoice. Design: [command-driven charts](design/command-charts.md).
+Ready-made, synthetic examples live in [`examples/charts/`](../examples/charts/README.md): two POSIX shell sources in the native format, and an opt-in profile for an agent-spend ledger that uses the generic `columns-v1` mapper. The profile's cards are labeled a **list-price estimate**, never an invoice. Reference: [command-driven charts](reference/command-charts/README.md).
 
 ---
 

@@ -3,23 +3,23 @@ title: "Command-driven charts source research"
 date: 2026-11-20
 status: accepted
 tags: [research, charts]
-summary: "Dependency, tree, process-boundary and upstream-contract findings behind the command-driven charts build plan; no live account data."
+summary: "Dependency, tree, process-boundary and upstream-contract findings gathered before the command-driven charts were built; no live account data."
 ---
 
 # Command-driven charts: source research
 
-Grounded at Sidescope `1c2b0e1` and the read-only agent-activity checkout `bcdbf46`, 2026-11-20. Behavior is owned by the [design](../design/command-charts.md); the build hand-off is the [plan](../design/command-charts-plan.md). No personal usage, credentials or authenticated captures were read or recorded.
+Grounded at Sidescope `1c2b0e1` and the read-only agent-activity checkout `bcdbf46`, 2026-11-20. The built behavior is owned by the [reference](../reference/command-charts/README.md); this page records what was found before building, and the tree facts below describe that earlier state. No personal usage, credentials or authenticated captures were read or recorded.
 
 ## Dependencies
 
 | Need | Finding | Choice |
 | :--- | :--- | :--- |
-| Decimals | Design requires up to 24 integer plus 18 fractional digits (42 digits). `i128` holds 38–39 digits and `rust_decimal` 28, so neither fits | `bigdecimal` 0.4 (`default-features = false`), behind a strict grammar wrapper that enforces the digit limits and refuses overflow on sums |
+| Decimals | The contract requires up to 24 integer plus 18 fractional digits (42 digits). `i128` holds 38–39 digits and `rust_decimal` 28, so neither fits | `bigdecimal` 0.4 (`default-features = false`), behind a strict grammar wrapper that enforces the digit limits and refuses overflow on sums |
 | Zones and calendars | The tree has no time crate; `libc` only. Host `/usr/share/zoneinfo` exists in the jail but is not guaranteed on the user's host | `jiff` 1 with `tzdb-bundle-always`, so DST tests are deterministic and need no system tzdata |
 | JSON Pointer | `serde_json::Value::pointer` implements RFC 6901 but returns `None` for both a bad pointer and a missing value | Reuse it for lookup; validate pointer syntax separately at configuration time |
 | Accessibility | `gtk4` 0.11 exposes `AccessibleExt`; `GTK_A11Y=none` in the private test bus, so assertions run on properties, not the AT-SPI tree | Pure text models carry accessible names and table rows; widget checks run in the visual harness |
 
-A scratch crate (not committed) confirmed that `jiff` and `bigdecimal` build under `scripts/native-env.sh`, that a 42-digit sum is exact, that `2026-11-01` in `America/New_York` is 25 hours long, and that an unknown zone is refused. `jiff` 1.0.1 spells the zoned conversion `civil::Date::in_tz("Zone")`, not `to_zoned`; read its docs rather than other versions' examples. The bundled database enlarges the release binary; the foundation stage records the size delta against `just test-release`.
+A scratch crate (not committed) confirmed that `jiff` and `bigdecimal` build under `scripts/native-env.sh`, that a 42-digit sum is exact, that `2026-11-01` in `America/New_York` is 25 hours long, and that an unknown zone is refused. `jiff` 1.0.1 spells the zoned conversion `civil::Date::in_tz("Zone")`, not `to_zoned`; read its docs rather than other versions' examples. The bundled database enlarges the release binary. No before/after size was recorded, so the delta is unknown.
 
 ## Tree facts
 
@@ -41,7 +41,7 @@ Read from `docs/reference/ledger-v1.md` (series section and CLI table), `interna
 - Header carries `version`, `generation`, `generatedAt`, `listEstimate` (always true), `range{from,to,source}` (effective, aligned outward) and `coverage{…, statement}`; `buckets[{start,end}]` are half-open UTC; `groups[{key,keys[],columns{…}}]`.
 - Columns omit a counter that is zero in every bucket of the group; `knownCostUSD` and `subscriptionKnownCostUSD` are decimal strings; `unpriced` and `subscriptionUnpriced` are the matching incompleteness counters; counts are integers.
 - Limits: 400 buckets, 60,000 group-by-bucket values, up to three group dimensions. Three hours at `minute` fits; a week at `minute` is refused.
-- Not available upstream: explicit no-group output, separate requested-versus-effective bounds, collection freshness distinct from `generatedAt`, and a capability surface. These are the feature requests in the request lane.
+- Not available upstream: explicit no-group output, separate requested-versus-effective bounds, collection freshness distinct from `generatedAt`, and a capability surface. These became the [feature requests](../requests/agent-activity-charts.md).
 - The checkout is read-only here and another agent is changing it. Re-read it before writing the request document or example profile; do not treat this table as current.
 
 ## Synthetic cases the fixtures must carry

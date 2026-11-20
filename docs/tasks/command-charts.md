@@ -1,22 +1,18 @@
 ---
 title: "Command-driven charts tasks"
 date: 2026-11-20
-status: accepted
-stage: DECIDED
-next: "T6 combined independent review; host-live check with the real collector"
-depends-on:
-  - ../design/command-charts-plan.md
+status: in-review
+stage: BUILT
+next: "Owner runs the charts on the host with the real collector; investigate the unexplained first full-visual-suite failure"
 tags: [tasks, charts]
 ---
 
 # Command-driven charts tasks
 
-Track: Heavy. Detail, interfaces, fences, tests and gates live in the [plan](../design/command-charts-plan.md); behavior in the [design](../design/command-charts.md); evidence in [research](../research/command-charts.md). `BASE` = the foundation commit: `dd48573`.
+The charts are built, reviewed, repaired, and documented in the [reference](../reference/command-charts/README.md). Evidence, every red run, and every unverified limit are in the [QA record](../qa/command-charts.md). What remains is verification that this jail cannot do.
 
-- [x] **T0 foundation** (sequential): dependencies, module exports, exact decimal/time/config/dataset/reduction/geometry/state types, shells, synthetic native fixtures.
-- [x] **T1 runtime lane** (after T0): bounded process runner, scheduler/backoff, cancellation, diagnostics.
-- [x] **T2 native view lane** (after T0): chart model, drawing, accessibility, widgets, PNG evidence.
-- [x] **T3 mapping lane** (after T0): generic column mapper, synthetic command examples, opt-in agent-activity profile.
-- [x] **T4 request document** (independent): agent-activity feature requests.
-- [x] **T5 integration** (after T1–T3): main wiring, CLI/docs/config, private-Sway visual and orphan checks, QA record.
-- [ ] **T6 combined independent review** (after T4, T5): one reviewer over the whole range.
+- [ ] **Host-live check.** On the owner's workstation, run the example profile against the real `agent-activity` collector and confirm the numbers, labels, and labeled partial or unavailable states look right on the real Sway desktop. Steps are in the [examples README](../../examples/charts/README.md#trying-it-on-your-host).
+- [ ] **Screen reader.** With a real AT-SPI session, listen to the card and plot labels; only property presence has been checked.
+- [ ] **Unexplained visual failure.** The first full `just test-visual` run failed once inside the chart suite and its log was not kept. Hardening was added, but the cause is unproven. If a full run ever fails there again, the saved `charts-*.log` names the assertion; until then treat it as a known unconfirmed flake.
+- [ ] **Release size and SIGKILL.** Optionally record the binary-size effect of the timezone database and decimal library, and decide whether Sidescope should protect descendants after its own SIGKILL.
+- [ ] **Agent-activity requests.** Deliver the [proposed requests](../requests/agent-activity-charts.md) to the upstream author; nothing here waits on them.

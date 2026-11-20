@@ -30,3 +30,40 @@ before enabling it and replace the example executable names with your own paths.
   window, for long ranges; Sidescope shows a refusal rather than changing the question.
 - The 3 h view is "about 3 h at 1 min": the CLI aligns bucket ends outward and Sidescope does
   not clip edge buckets. The current day bucket is provisional ("so far").
+
+## Trying it on your host
+
+Everything below uses a throwaway configuration directory, so your real
+`~/.config/sidescope/config.toml` is never read, enabled, or overwritten. Setting
+`XDG_CONFIG_HOME` also means your usual weather, AI, and theme settings do not apply to
+these runs. Run the commands from a checkout of this repository; use `sidescope` from
+`just deploy`, `cargo install`, or any release binary (in the checkout, `just dev` runs the
+same application with the same environment variable).
+
+1. **Synthetic first, no ledger needed.** Point the profile at the fake ledger and check it:
+
+   ```bash
+   try="$HOME/.cache/sidescope-charts-try"
+   mkdir -p "$try/sidescope"
+   sed "s|\"agent-activity\"|\"$PWD/examples/charts/fake-ledger.sh\"|" \
+     examples/charts/agent-activity.toml > "$try/sidescope/config.toml"
+   XDG_CONFIG_HOME="$try" sidescope doctor   # prints every command; each should say "ok"
+   XDG_CONFIG_HOME="$try" sidescope          # live mode: chart cards appear below the others
+   ```
+
+   Press **R** to refresh. The fake answer ignores the time window, so the numbers are
+   fixed synthetic examples.
+2. **Your real collector, still in the throwaway directory.** Copy the profile unchanged
+   (`cp examples/charts/agent-activity.toml "$try/sidescope/config.toml"`), confirm
+   `agent-activity` is on `PATH` (or put its full path in each `command`), then run
+   `XDG_CONFIG_HOME="$try" sidescope doctor` and `XDG_CONFIG_HOME="$try" sidescope`.
+   Sidescope does not start, sync, or authenticate the collector; if it is stopped, the
+   cards show the last answer or an unavailable banner, and **Collected through** in Info
+   stays "unknown" because this CLI does not assert collection freshness.
+3. **Judge the result.** Open Details and Info on each card. Look for the labels
+   "list-price estimate" and "incomplete", the hatched "so far" bar for today, and the
+   coverage statement in Info. Compare a few totals with the CLI's own output.
+4. **Adopt it deliberately.** Only when satisfied, paste the tables you want into your real
+   configuration by hand. Report problems with the exact card and Info text.
+
+Remove the trial with `rm -r "$HOME/.cache/sidescope-charts-try"`.
