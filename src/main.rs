@@ -2,7 +2,9 @@ use adw::prelude::*;
 use glib::translate::{ToGlibPtr, ToGlibPtrMut};
 use gtk::glib;
 use sidescope::{
-    AppConfig, Card, CardMetric, CardState, Graph, Pace, config_path, dashboard,
+    AppConfig, Card, CardMetric, CardState, Graph, Pace,
+    cli::{Command, LaunchMode, find_in_path, help_text, parse_args, run_doctor},
+    config_path, dashboard,
     density::{self, Density},
     load_config_at, pace_context, pack_columns, plot, process, sensors, theme, visible_cards,
     weather,
@@ -270,22 +272,42 @@ fn shortcut_action(key: gtk::gdk::Key, demo: bool, help_visible: bool) -> Option
 }
 
 fn main() {
-    let arg = std::env::args().nth(1);
-    let demo = arg.as_deref() != Some("--live");
-    let initial = match arg.as_deref() {
-        Some("--report") => {
-            let path = std::env::args().nth(2).unwrap_or_else(|| {
-                eprintln!("--report requires a file path");
-                std::process::exit(2);
-            });
-            std::fs::read_to_string(&path).unwrap_or_else(|error| {
-                eprintln!("cannot read report {path}: {error}");
-                std::process::exit(2);
-            })
+    let command = parse_args(std::env::args()).unwrap_or_else(|error| {
+        eprintln!("{error}");
+        std::process::exit(2);
+    });
+    let mode = match command {
+        Command::Help => {
+            println!("{}", help_text());
+            return;
         }
+        Command::Version => {
+            println!(
+                "sidescope {} ({})",
+                env!("CARGO_PKG_VERSION"),
+                BUILD_REVISION
+            );
+            return;
+        }
+        Command::Doctor => {
+            let (report, ok) = run_doctor();
+            println!("{report}");
+            if !ok {
+                std::process::exit(1);
+            }
+            return;
+        }
+        Command::Run { mode } => mode,
+    };
+    let demo = !matches!(mode, LaunchMode::Live);
+    let browser = matches!(mode, LaunchMode::BrowserMock);
+    let initial = match mode {
+        LaunchMode::Report(path) => std::fs::read_to_string(&path).unwrap_or_else(|error| {
+            eprintln!("cannot read report {path}: {error}");
+            std::process::exit(2);
+        }),
         _ => DEMO.into(),
     };
-    let browser = arg.as_deref() == Some("--browser");
     let config = if browser {
         AppConfig::default()
     } else {
@@ -600,6 +622,12 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
     let data = Rc::new(RefCell::new(DashboardData {
         providers: if demo {
             visible_cards(initial, config).expect("validated initial report")
+        } else if config.enabled.as_deref() != Some(&[]) && find_in_path("ai-usagebar").is_none() {
+            vec![dashboard::unavailable(
+                "ai-usage",
+                "AI usage",
+                "Optional: install ai-usagebar for AI quota cards, or set enabled = [] in config.toml to hide.",
+            )]
         } else {
             vec![]
         },
@@ -716,6 +744,22 @@ fn build(app: &adw::Application, initial: &str, demo: bool, config: &AppConfig) 
         let data = data.clone();
         let check_status = check_status.clone();
         refresh.connect_clicked(move |button| {
+            if config.enabled.as_deref() == Some(&[]) {
+                data.borrow_mut().providers.clear();
+                data.borrow_mut().error = None;
+                render_dashboard(&wide_stack, &narrow_stack, &data.borrow(), false);
+                return;
+            }
+            if find_in_path("ai-usagebar").is_none() {
+                data.borrow_mut().providers = vec![dashboard::unavailable(
+                    "ai-usage",
+                    "AI usage",
+                    "Optional: install ai-usagebar for AI quota cards, or run `sidescope --demo` for sample data.",
+                )];
+                data.borrow_mut().error = None;
+                render_dashboard(&wide_stack, &narrow_stack, &data.borrow(), false);
+                return;
+            }
             button.set_sensitive(false);
             check_status.set_text(&report_check_text(ReportCheck::Checking));
             let (tx, rx) = mpsc::channel();

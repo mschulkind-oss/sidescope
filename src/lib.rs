@@ -1,3 +1,4 @@
+pub mod cli;
 pub mod dashboard;
 pub mod density;
 pub mod plot;

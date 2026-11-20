@@ -25,7 +25,7 @@ Launch via `uvx` with an automatic runtime environment preflight:
 uvx sidescope doctor
 
 # Launch the dashboard:
-uvx sidescope --live
+uvx sidescope
 ```
 
 If required runtime libraries (`libgtk-4-1`, `libadwaita-1-0`) are missing, `uvx sidescope doctor` reports them alongside the exact distro install command.
@@ -110,7 +110,7 @@ just deploy       # Release build, installed as sidescope in ~/.local/bin
 just uninstall    # Remove that binary again
 ```
 
-`just deploy` needs no root and writes nothing outside your own directories: no system prefix, no desktop entry, no edit to `~/.config/sidescope`. It installs the release build as `sidescope` in `${SIDESCOPE_BIN_DIR:-${XDG_BIN_HOME:-~/.local/bin}}`, staging the file beside its destination so a compositor launch never opens a half-written binary, then prints the path, the source revision, and a warning when that directory is not on your `PATH`. Launch the installed binary with `--live` the way you launch the app today, for example `exec sidescope --live` in your Sway configuration; that reads your `ai-usagebar` report. A bare launch without `--live` renders the bundled **synthetic sample** instead — useful for looking at the design without any provider configured, and marked by the footer's `SAMPLE DATA` label. `--report <file>` renders a specific report file. Live mode still needs `ai-usagebar` on `PATH`, and your provider list stays in `~/.config/sidescope/config.toml`. `just release <version>` remains the separate tag-cutting path.
+`just deploy` needs no root and writes nothing outside your own directories: no system prefix, no desktop entry, no edit to `~/.config/sidescope`. It installs the release build as `sidescope` in `${SIDESCOPE_BIN_DIR:-${XDG_BIN_HOME:-~/.local/bin}}`, staging the file beside its destination so a compositor launch never opens a half-written binary, then prints the path, the source revision, and a warning when that directory is not on your `PATH`. Launch the installed binary directly, for example `exec sidescope` in your Sway configuration; that runs live mode (local system telemetry plus `ai-usagebar` and configured weather). Pass `--demo` to render the bundled **synthetic sample** instead — useful for looking at the design without any provider configured, and marked by the footer's `SAMPLE DATA` label. `--report <file>` renders a specific report file, `sidescope doctor` checks your runtime environment, and `sidescope --help` prints the full configuration reference. `just release <version>` remains the separate tag-cutting path.
 
 ### Choose providers
 

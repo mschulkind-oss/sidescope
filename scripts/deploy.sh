@@ -38,8 +38,8 @@ case "${1:-}" in
     revision=$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || printf 'unknown')
     printf 'Installed %s\n' "$binary"
     printf '  from %s (%s)\n' "$source_binary" "$revision"
-    printf '  launch it from your compositor, for example: exec %s --live\n' "$binary"
-    printf '    (a bare launch shows the bundled sample data; --live reads your ai-usagebar report)\n'
+    printf '  launch it from your compositor, for example: exec %s\n' "$binary"
+    printf '    (run %s --help for config schema or %s doctor to check runtime deps)\n' "$binary" "$binary"
     case ":$PATH:" in
       *":$bin_dir:"*) ;;
       *)
