@@ -3,7 +3,7 @@ title: Chart authoring and debugging without the GUI
 date: 2026-11-20
 status: accepted
 stage: DECIDED
-next: Complete the implementation plan against the current tree, then build and verify the approved chart tooling and profiles.
+next: Build from the completed plan (core and adapter tasks first, then the CLI), then verify the approved chart tooling and profiles.
 ---
 
 # Chart authoring and debugging without the GUI
