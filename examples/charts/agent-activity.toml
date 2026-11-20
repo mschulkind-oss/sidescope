@@ -1,0 +1,232 @@
+# Opt-in usage-cost profile for the `agent-activity ledger series` CLI.
+#
+# Sidescope never loads this file by itself. Copy the tables you want into
+# your own configuration file; having a [[chart_sources]] entry there is the
+# enablement. The commands run with this application's authority, not in a
+# sandbox, and nothing here installs, starts or authenticates the collector.
+#
+# Ledger field names (knownCostUSD, unpriced, subscription*) appear only in
+# this profile and its synthetic fixtures, never in Sidescope's source.
+#
+# What the numbers are: the metered cards show a *list-price estimate* of
+# metered responses, not an invoice, and omit fixed fees, discounts, taxes and
+# any activity the collector has not seen. A response with no known price is
+# counted in `unpriced`; its cell is "partial" (a lower bound), never complete.
+# Plain subscription usage has no per-response dollar figure: it appears only
+# as a response count. `subscription_cost` is the provider-priced estimate for
+# subscription providers that bill by token, and is a separate metric that is
+# never added to the metered one.
+#
+# Query limits upstream: 400 buckets per answer and 60,000 group x bucket
+# values. Three hours at minute resolution is 180 buckets; a week at minute
+# resolution is refused, so widen the bucket rather than the window. The
+# bucket is a literal CLI argument; Sidescope does not infer it from `window`.
+# Returned bucket ends are aligned outward, so the "3h" view is "about 3h at
+# 1 min", and the current day bucket is provisional ("so far").
+#
+# Presets: use window = "2h" for two hours, or calendar_days = 3 for three
+# dates; keep the matching --bucket argument.
+#
+# "project" is a display name for the ledger's workspace label, not an
+# inferred project identity.
+
+[[chart_sources]]
+id = "recent"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "minute", "--group-by", "workspace",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+window = "3h"
+timezone = "America/New_York"
+refresh_seconds = 30
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = [{ name = "project", pointer = "/keys/0" }]
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+
+[[chart_sources.mapping.metrics]]
+id = "metered_cost"
+label = "Metered list-price estimate"
+unit = "USD"
+quantity = "interval_total"
+estimate = true
+unknown_contribution = "nonnegative"
+values = "/columns/knownCostUSD"
+quality_counter = "/columns/unpriced"
+omitted = "zero"
+
+[[chart_sources]]
+id = "daily"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "day", "--group-by", "workspace",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+calendar_days = 5
+timezone = "America/New_York"
+refresh_seconds = 60
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = [{ name = "project", pointer = "/keys/0" }]
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+
+[[chart_sources.mapping.metrics]]
+id = "metered_cost"
+label = "Metered list-price estimate"
+unit = "USD"
+quantity = "interval_total"
+estimate = true
+unknown_contribution = "nonnegative"
+values = "/columns/knownCostUSD"
+quality_counter = "/columns/unpriced"
+omitted = "zero"
+
+# Optional: the same five dates by model instead of by project.
+[[chart_sources]]
+id = "models"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "day", "--group-by", "model",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+calendar_days = 5
+timezone = "America/New_York"
+refresh_seconds = 60
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = [{ name = "model", pointer = "/keys/0" }]
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+
+[[chart_sources.mapping.metrics]]
+id = "metered_cost"
+label = "Metered list-price estimate"
+unit = "USD"
+quantity = "interval_total"
+estimate = true
+unknown_contribution = "nonnegative"
+values = "/columns/knownCostUSD"
+quality_counter = "/columns/unpriced"
+omitted = "zero"
+
+# Optional: subscription activity, kept apart from the metered estimate.
+[[chart_sources]]
+id = "subscription"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "day", "--group-by", "channel",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+calendar_days = 5
+timezone = "America/New_York"
+refresh_seconds = 60
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = [{ name = "channel", pointer = "/keys/0" }]
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+
+[[chart_sources.mapping.metrics]]
+id = "subscription_responses"
+label = "Subscription responses (not metered)"
+unit = "responses"
+quantity = "interval_total"
+values = "/columns/subscriptionResponses"
+omitted = "zero"
+
+[[chart_sources.mapping.metrics]]
+id = "subscription_cost"
+label = "Provider-priced subscription estimate"
+unit = "USD"
+quantity = "interval_total"
+estimate = true
+unknown_contribution = "nonnegative"
+values = "/columns/subscriptionKnownCostUSD"
+quality_counter = "/columns/subscriptionUnpriced"
+omitted = "zero"
+
+[[chart_cards]]
+id = "recent-cost"
+source = "recent"
+kind = "time-series"
+metric = "metered_cost"
+title = "Metered list-price estimate (≈3h · 1 min)"
+summary = "sum"
+
+[[chart_cards]]
+id = "daily-cost"
+source = "daily"
+kind = "time-bars"
+metric = "metered_cost"
+title = "Metered list-price estimate (last 5 dates)"
+summary = "sum"
+stack_by = "project"
+
+[[chart_cards]]
+id = "project-ranking"
+source = "daily"
+kind = "ranked-bars"
+metric = "metered_cost"
+title = "Metered list-price estimate by project"
+group_by = ["project"]
+top_n = 5
+
+[[chart_cards]]
+id = "model-ranking"
+source = "models"
+kind = "ranked-bars"
+metric = "metered_cost"
+title = "Metered list-price estimate by model"
+group_by = ["model"]
+top_n = 5
+
+[[chart_cards]]
+id = "subscription-activity"
+source = "subscription"
+kind = "time-bars"
+metric = "subscription_responses"
+title = "Subscription responses (not metered)"
+stack_by = "channel"
+
+[[chart_cards]]
+id = "subscription-estimate"
+source = "subscription"
+kind = "time-bars"
+metric = "subscription_cost"
+title = "Provider-priced subscription estimate"
+stack_by = "channel"

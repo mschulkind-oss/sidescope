@@ -1,0 +1,79 @@
+{
+ "version": "ledger-v1",
+ "generation": 4021,
+ "generatedAt": "2026-11-20T12:00:07.000Z",
+ "listEstimate": true,
+ "coverage": {
+  "note": "synthetic"
+ },
+ "range": {
+  "from": "2026-10-30T04:00:00.000Z",
+  "to": "2026-11-04T05:00:00.000Z",
+  "source": "explicit"
+ },
+ "bucket": "day",
+ "timezone": "America/New_York",
+ "groupBy": "model",
+ "layout": "columns",
+ "buckets": [
+  {
+   "start": "2026-10-30T04:00:00.000Z",
+   "end": "2026-10-31T04:00:00.000Z"
+  },
+  {
+   "start": "2026-10-31T04:00:00.000Z",
+   "end": "2026-11-01T04:00:00.000Z"
+  },
+  {
+   "start": "2026-11-01T04:00:00.000Z",
+   "end": "2026-11-02T05:00:00.000Z"
+  },
+  {
+   "start": "2026-11-02T05:00:00.000Z",
+   "end": "2026-11-03T05:00:00.000Z"
+  },
+  {
+   "start": "2026-11-03T05:00:00.000Z",
+   "end": "2026-11-04T05:00:00.000Z"
+  }
+ ],
+ "groups": [
+  {
+   "key": "model-one",
+   "keys": [
+    "model-one"
+   ],
+   "columns": {
+    "knownCostUSD": [
+     "2.0",
+     "1.5",
+     "4.0",
+     "1.0",
+     "1.0"
+    ]
+   }
+  },
+  {
+   "key": "(unknown)",
+   "keys": [
+    "(unknown)"
+   ],
+   "columns": {
+    "knownCostUSD": [
+     "0.25",
+     "0.75",
+     "2.625",
+     "0.25",
+     "0.5"
+    ],
+    "unpriced": [
+     1,
+     0,
+     3,
+     0,
+     0
+    ]
+   }
+  }
+ ]
+}

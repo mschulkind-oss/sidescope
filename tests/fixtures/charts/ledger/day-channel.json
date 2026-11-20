@@ -1,0 +1,115 @@
+{
+ "version": "ledger-v1",
+ "generation": 4021,
+ "generatedAt": "2026-11-20T12:00:07.000Z",
+ "listEstimate": true,
+ "coverage": {
+  "note": "synthetic"
+ },
+ "range": {
+  "from": "2026-10-30T04:00:00.000Z",
+  "to": "2026-11-04T05:00:00.000Z",
+  "source": "explicit"
+ },
+ "bucket": "day",
+ "timezone": "America/New_York",
+ "groupBy": "channel",
+ "layout": "columns",
+ "buckets": [
+  {
+   "start": "2026-10-30T04:00:00.000Z",
+   "end": "2026-10-31T04:00:00.000Z"
+  },
+  {
+   "start": "2026-10-31T04:00:00.000Z",
+   "end": "2026-11-01T04:00:00.000Z"
+  },
+  {
+   "start": "2026-11-01T04:00:00.000Z",
+   "end": "2026-11-02T05:00:00.000Z"
+  },
+  {
+   "start": "2026-11-02T05:00:00.000Z",
+   "end": "2026-11-03T05:00:00.000Z"
+  },
+  {
+   "start": "2026-11-03T05:00:00.000Z",
+   "end": "2026-11-04T05:00:00.000Z"
+  }
+ ],
+ "groups": [
+  {
+   "key": "metered",
+   "keys": [
+    "metered"
+   ],
+   "columns": {
+    "responses": [
+     14,
+     12,
+     36,
+     13,
+     11
+    ],
+    "knownCostUSD": [
+     "2.25",
+     "2.25",
+     "6.625",
+     "1.25",
+     "1.5"
+    ]
+   }
+  },
+  {
+   "key": "subscription",
+   "keys": [
+    "subscription"
+   ],
+   "columns": {
+    "subscriptionResponses": [
+     100,
+     80,
+     0,
+     120,
+     60
+    ],
+    "subscriptionOutput": [
+     9000,
+     7000,
+     0,
+     11000,
+     5000
+    ]
+   }
+  },
+  {
+   "key": "subscription:example-provider",
+   "keys": [
+    "subscription:example-provider"
+   ],
+   "columns": {
+    "subscriptionResponses": [
+     0,
+     31,
+     12,
+     0,
+     5
+    ],
+    "subscriptionKnownCostUSD": [
+     "0",
+     "0.09",
+     "0.04",
+     "0",
+     "0.02"
+    ],
+    "subscriptionUnpriced": [
+     0,
+     0,
+     1,
+     0,
+     0
+    ]
+   }
+  }
+ ]
+}
