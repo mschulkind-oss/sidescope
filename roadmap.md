@@ -20,7 +20,7 @@ This is a routing table, not a feature catalog or a progress log. Details live i
 
 ## Command-driven charts
 
-1. [Review reusable CLI charts](docs/design/command-charts.md) — ground custom-data extensibility in minute-level history, daily totals, and project breakdowns without a tool-specific renderer; acceptance precedes the [implementation handoff seed](docs/design/command-charts-plan.md).
+1. [Build reusable CLI charts](docs/design/command-charts-plan.md) — the accepted [design](docs/design/command-charts.md) is a ready hand-off; track progress in [tasks](docs/tasks/command-charts.md).
 
 ## ▶️ Actionable
 

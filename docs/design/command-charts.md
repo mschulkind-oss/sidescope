@@ -3,7 +3,7 @@ title: "Reusable charts driven by local commands"
 date: 2026-11-20
 status: accepted
 stage: DECIDED
-next: "Complete the implementation handoff and build the command-driven charts in isolated lanes."
+next: "Build per the implementation plan, starting with the foundation stage"
 tags: [design, charts, extensibility]
 summary: "Generic native charts, bounded CLI execution, and an example usage-cost dashboard without an agent-activity dependency."
 vantage:
@@ -12,7 +12,7 @@ vantage:
 
 # Reusable charts driven by local commands
 
-**Status:** 2026-11-20. Proposal only; no chart-source implementation or live account measurements. Grounded in Sidescope at `59d5f37` and the mounted agent-activity checkout at `bcdbf46`.
+**Status:** 2026-11-20. Accepted; no chart-source implementation yet and no live account measurements. Grounded in Sidescope at `59d5f37` and the mounted agent-activity checkout at `bcdbf46`.
 
 > **In short.** Teach Sidescope to plot measurements from local commands, not to understand an agent-activity database. Keep command execution, data normalization, and chart presentation separate so the same widgets can show spending, build times, traffic, or power consumption.
 
@@ -24,7 +24,7 @@ vantage:
 
 **Needs your ruling:** None. The owner approved implementation on 2026-11-20.
 
-**Reads with:** [product design](sidebar.md), [implementation seed](command-charts-plan.md) (not a build handoff), [roadmap](../../roadmap.md).
+**Reads with:** [product design](sidebar.md), [implementation plan](command-charts-plan.md), [research](../research/command-charts.md), [roadmap](../../roadmap.md).
 
 ---
 
@@ -291,7 +291,7 @@ I would build a synthetic direct-contract timeline first, then daily and ranked 
 - Hung/noisy/malformed commands do not block GTK, survive shutdown, or publish a truncated/partial parse. Switching windows cannot publish an obsolete in-flight answer.
 - Keyboard details and narrow layouts remain usable; synthetic visual captures are inspected, not merely generated. No private profile or authenticated capture enters fixtures, logs, or screenshots.
 
-**Open Questions:** None filed. The design is accepted; the companion plan must be completed before implementers start.
+**Open Questions:** None filed. The design is accepted; the [implementation plan](command-charts-plan.md) is the build hand-off.
 
 ## Decision Ledger
 
