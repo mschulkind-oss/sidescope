@@ -1,12 +1,12 @@
 class Sidescope < Formula
   desc "Native Wayland status column for AI usage, system telemetry, and weather"
   homepage "https://github.com/mschulkind-oss/sidescope"
-  version "0.1.0"
+  version "0.1.1"
   license "Apache-2.0"
 
   on_linux do
     on_intel do
-      url "https://github.com/mschulkind-oss/sidescope/releases/download/v0.1.0/sidescope-v0.1.0-ubuntu24.04-x86_64.tar.gz"
+      url "https://github.com/mschulkind-oss/sidescope/releases/download/v0.1.1/sidescope-v0.1.1-ubuntu24.04-x86_64.tar.gz"
       sha256 "REPLACE_WITH_RELEASE_TARBALL_SHA256"
     end
   end
