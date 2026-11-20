@@ -1,3 +1,7 @@
+pub mod chart;
+pub mod chart_mapping;
+pub mod chart_runtime;
+pub mod chart_view;
 pub mod cli;
 pub mod dashboard;
 pub mod density;
@@ -146,6 +150,10 @@ pub struct AppConfig {
     pub weather: Option<weather::WeatherConfig>,
     #[serde(default)]
     pub sensors: sensors::SensorConfig,
+    #[serde(default)]
+    pub chart_sources: Vec<chart::config::ChartSourceConfig>,
+    #[serde(default)]
+    pub chart_cards: Vec<chart::config::ChartCardConfig>,
 }
 
 pub fn parse_config(source: &str) -> Result<AppConfig, String> {
@@ -173,6 +181,7 @@ pub fn parse_config(source: &str) -> Result<AppConfig, String> {
         location.validate()?;
     }
     config.sensors.validate()?;
+    chart::config::validate_chart_config(&config.chart_sources, &config.chart_cards)?;
     Ok(config)
 }
 

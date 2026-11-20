@@ -1,0 +1,68 @@
+{
+  "version": "sidescope-chart-v1",
+  "generated_at": "2026-11-20T12:02:10Z",
+  "observed_through": null,
+  "revision": "sample-7",
+  "range": {
+    "start": "2026-11-20T12:00:00Z",
+    "end": "2026-11-20T12:02:00Z",
+    "timezone": "UTC"
+  },
+  "intervals": [
+    {
+      "start": "2026-11-20T12:00:00Z",
+      "end": "2026-11-20T12:01:00Z"
+    },
+    {
+      "start": "2026-11-20T12:01:00Z",
+      "end": "2026-11-20T12:02:00Z"
+    }
+  ],
+  "metrics": {
+    "latency": {
+      "label": "Latency",
+      "unit": "ms",
+      "quantity": "gauge",
+      "estimate": false
+    }
+  },
+  "series": [
+    {
+      "id": "api",
+      "dimensions": {
+        "service": "api"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "41",
+            "44.5"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "db",
+      "dimensions": {
+        "service": "db"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "12",
+            null
+          ],
+          "quality": [
+            "complete",
+            "missing"
+          ]
+        }
+      }
+    }
+  ],
+  "notices": []
+}

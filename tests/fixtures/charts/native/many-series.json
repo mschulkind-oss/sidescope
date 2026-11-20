@@ -1,0 +1,392 @@
+{
+  "version": "sidescope-chart-v1",
+  "generated_at": "2026-11-20T12:02:10Z",
+  "observed_through": null,
+  "revision": "sample-7",
+  "range": {
+    "start": "2026-11-20T12:00:00Z",
+    "end": "2026-11-20T12:02:00Z",
+    "timezone": "UTC"
+  },
+  "intervals": [
+    {
+      "start": "2026-11-20T12:00:00Z",
+      "end": "2026-11-20T12:01:00Z"
+    },
+    {
+      "start": "2026-11-20T12:01:00Z",
+      "end": "2026-11-20T12:02:00Z"
+    }
+  ],
+  "metrics": {
+    "amount": {
+      "label": "Estimated amount",
+      "unit": "USD",
+      "quantity": "interval_total",
+      "estimate": true
+    }
+  },
+  "series": [
+    {
+      "id": "s00",
+      "dimensions": {
+        "project": "Example 00"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "0",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s01",
+      "dimensions": {
+        "project": "Example 01"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "1",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s02",
+      "dimensions": {
+        "project": "Example 02"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "2",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s03",
+      "dimensions": {
+        "project": "Example 03"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "3",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s04",
+      "dimensions": {
+        "project": "Example 04"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "4",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s05",
+      "dimensions": {
+        "project": "Example 05"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "5",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s06",
+      "dimensions": {
+        "project": "Example 06"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "6",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s07",
+      "dimensions": {
+        "project": "Example 07"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "7",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s08",
+      "dimensions": {
+        "project": "Example 08"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "8",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s09",
+      "dimensions": {
+        "project": "Example 09"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "9",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s10",
+      "dimensions": {
+        "project": "Example 10"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "10",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s11",
+      "dimensions": {
+        "project": "Example 11"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "11",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s12",
+      "dimensions": {
+        "project": "Example 12"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "12",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s13",
+      "dimensions": {
+        "project": "Example 13"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "13",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s14",
+      "dimensions": {
+        "project": "Example 14"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "14",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s15",
+      "dimensions": {
+        "project": "Example 15"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "15",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s16",
+      "dimensions": {
+        "project": "Example 16"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "16",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s17",
+      "dimensions": {
+        "project": "Example 17"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "17",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s18",
+      "dimensions": {
+        "project": "Example 18"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "18",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s19",
+      "dimensions": {
+        "project": "Example 19"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "19",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    }
+  ],
+  "notices": []
+}

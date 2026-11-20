@@ -1,0 +1,68 @@
+{
+  "version": "sidescope-chart-v1",
+  "generated_at": "2026-11-20T12:02:10Z",
+  "observed_through": null,
+  "revision": "sample-7",
+  "range": {
+    "start": "2026-10-29T04:00:00Z",
+    "end": "2026-11-03T05:00:00Z",
+    "timezone": "America/New_York"
+  },
+  "intervals": [
+    {
+      "start": "2026-10-29T04:00:00Z",
+      "end": "2026-10-30T04:00:00Z"
+    },
+    {
+      "start": "2026-10-30T04:00:00Z",
+      "end": "2026-10-31T04:00:00Z"
+    },
+    {
+      "start": "2026-10-31T04:00:00Z",
+      "end": "2026-11-01T04:00:00Z"
+    },
+    {
+      "start": "2026-11-01T04:00:00Z",
+      "end": "2026-11-02T05:00:00Z"
+    },
+    {
+      "start": "2026-11-02T05:00:00Z",
+      "end": "2026-11-03T05:00:00Z"
+    }
+  ],
+  "metrics": {
+    "amount": {
+      "label": "Estimated amount",
+      "unit": "USD",
+      "quantity": "interval_total",
+      "estimate": true
+    }
+  },
+  "series": [
+    {
+      "id": "a",
+      "dimensions": {
+        "project": "Example A"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "1.00",
+            "2.50",
+            "0",
+            "4.25",
+            "3.10"
+          ],
+          "quality": [
+            "complete",
+            "complete",
+            "complete",
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    }
+  ],
+  "notices": []
+}

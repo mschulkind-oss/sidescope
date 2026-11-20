@@ -10,6 +10,7 @@ readme = "README.md"
 keywords = ["wayland", "gtk4", "dashboard", "status", "sway"]
 categories = ["gui"]
 exclude = [
+    "examples/",
     "docs/",
     "packaging/",
     "screenshots/",
@@ -30,6 +31,8 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 toml = { version = "1.1", default-features = false, features = ["std", "serde", "parse"] }
 libc = "0.2"
+jiff = { version = "1", default-features = false, features = ["std", "tzdb-bundle-always"] }
+bigdecimal = { version = "0.4", default-features = false }
 
 # Release size profile: strip + fat LTO + single codegen unit measured -37.5%
 # on the binary. panic stays unwind so GTK callback panics stay contained
