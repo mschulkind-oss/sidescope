@@ -1,12 +1,14 @@
 ---
 title: Chart authoring and debugging without the GUI
 date: 2026-11-20
-status: in-review
-stage: DESIGN
-next: Review this design, then seed one implementation plan for the `charts` command family and the capability-gated agent-activity profile.
+status: accepted
+stage: DECIDED
+next: Complete the implementation plan against the current tree, then build and verify the approved chart tooling and profiles.
 ---
 
 # Chart authoring and debugging without the GUI
+
+**Status:** 2026-11-20 — approved for implementation; code remains unbuilt for the additions below. The owner directed a planned fan-out build after reviewing this design's scope.
 
 ## Verdict
 
