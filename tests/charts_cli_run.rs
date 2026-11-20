@@ -351,3 +351,36 @@ fn details_and_selectors_work_on_a_live_run() {
     );
     assert!(text.contains("card c: plotted"), "{text}");
 }
+
+#[test]
+fn a_refused_exit_zero_output_never_reads_as_fresh() {
+    let scratch = Scratch::new("refused-fresh");
+    let bad = scratch.producer("bad.sh", "echo '{not json'");
+    let bytes = scratch.producer("bytes.sh", "printf '\\377\\376{not json'");
+    let config = scratch.config(
+        &[
+            source_toml("bad", &[&bad], ""),
+            source_toml("bytes", &[&bytes], ""),
+            card_toml("bad-card", "bad", "time-series", "amount", ""),
+            card_toml("bytes-card", "bytes", "time-series", "amount", ""),
+        ]
+        .concat(),
+    );
+    let out = run(&["charts", "run", "--config", &config, "--all-sources"]);
+    assert_eq!(out.code, 1, "{}", out.stdout);
+    for id in ["bad", "bytes"] {
+        let source = out.source(id);
+        assert_eq!(source["dataset"]["status"], "refused");
+        let freshness = source["result"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["id"] == "freshness")
+            .unwrap();
+        assert_eq!(freshness["status"], "not-run", "{id}");
+        let why = freshness["why"].as_str().unwrap();
+        assert!(why.starts_with("dependency failed: dataset"), "{why}");
+    }
+    assert_eq!(out.check("freshness")["status"], "not-run");
+    assert_ne!(out.check("freshness")["status"], "pass");
+}

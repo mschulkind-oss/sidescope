@@ -381,9 +381,12 @@ pub fn run_source<'a>(config: &'a ChartSourceConfig, attempt: &Attempt) -> Sourc
             eval.snapshot = Some(snap);
         }
     }
-    eval.freshness = match eval.execution.blocks("execution") {
-        Some(blocked) => blocked,
-        None => {
+    eval.freshness = match (
+        eval.execution.blocks("execution"),
+        eval.dataset.blocks("dataset"),
+    ) {
+        (Some(blocked), _) | (None, Some(blocked)) => blocked,
+        (None, None) => {
             let age = model_at.as_second() - attempt.ended_at.as_second();
             if age <= i64::try_from(config.stale_after().as_secs()).unwrap_or(i64::MAX) {
                 Step::pass()
