@@ -1,0 +1,86 @@
+{
+  "version": "ledger-v1",
+  "generation": 4,
+  "generatedAt": "2026-11-16T15:04:05.123Z",
+  "listEstimate": true,
+  "range": {
+    "from": "2026-11-16T12:00:00.000Z",
+    "to": "2026-11-16T12:15:00.000Z",
+    "source": "explicit"
+  },
+  "coverage": {
+    "workspaces": [
+      "ws",
+      "ws2"
+    ],
+    "filesBehind": 0,
+    "bytesBehind": 0,
+    "filesError": 0,
+    "filesGone": 0,
+    "oldestUnreadModifiedAt": null,
+    "responses": {
+      "nonTerminal": 0,
+      "undated": 0,
+      "unknownCounter": 0,
+      "unpriced": 0,
+      "routeAssumed": 1,
+      "durationInferred": 0,
+      "providerUnknown": 0,
+      "subscription": 5,
+      "modelInferred": 0
+    },
+    "unpricedReasons": {},
+    "statement": "Headless and other-client usage may be absent. No answer claims complete coverage."
+  },
+  "bucket": "5min",
+  "timezone": "UTC",
+  "groupBy": "none",
+  "layout": "columns",
+  "lastCommitAt": "2026-11-16T15:03:58.123Z",
+  "filters": {
+    "channel": "subscription"
+  },
+  "quotaWeights": {
+    "generated": "2026-11-16T15:00:00Z",
+    "fittedFrom": "2026-11-01T00:00:00Z",
+    "fittedThrough": "2026-11-16T14:45:00Z",
+    "seatPriceUSDPerMonth": 100,
+    "percentPerUSD": {
+      "claude-fable-5-2": {
+        "fiveHour": 4000,
+        "weekly": 1000
+      },
+      "claude-opus-5-5": {
+        "fiveHour": null,
+        "weekly": 500
+      }
+    }
+  },
+  "buckets": [
+    {
+      "start": "2026-11-16T12:00:00.000Z",
+      "end": "2026-11-16T12:05:00.000Z"
+    },
+    {
+      "start": "2026-11-16T12:05:00.000Z",
+      "end": "2026-11-16T12:10:00.000Z"
+    },
+    {
+      "start": "2026-11-16T12:10:00.000Z",
+      "end": "2026-11-16T12:15:00.000Z"
+    }
+  ],
+  "groups": [
+    {
+      "key": "",
+      "keys": [],
+      "columns": {
+        "subscriptionWeeklyPercent": [
+          60,
+          70.5,
+          40.25
+        ]
+      }
+    }
+  ]
+}

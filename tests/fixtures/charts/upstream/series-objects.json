@@ -1,0 +1,228 @@
+{
+  "version": "ledger-v1",
+  "generation": 4,
+  "generatedAt": "2026-11-16T15:04:05.123Z",
+  "listEstimate": true,
+  "range": {
+    "from": "2026-11-16T12:00:00.000Z",
+    "to": "2026-11-16T12:15:00.000Z",
+    "source": "explicit"
+  },
+  "coverage": {
+    "workspaces": [
+      "ws",
+      "ws2"
+    ],
+    "filesBehind": 0,
+    "bytesBehind": 0,
+    "filesError": 0,
+    "filesGone": 0,
+    "oldestUnreadModifiedAt": null,
+    "responses": {
+      "nonTerminal": 0,
+      "undated": 0,
+      "unknownCounter": 0,
+      "unpriced": 0,
+      "routeAssumed": 1,
+      "durationInferred": 0,
+      "providerUnknown": 0,
+      "subscription": 5,
+      "modelInferred": 0
+    },
+    "unpricedReasons": {},
+    "statement": "Headless and other-client usage may be absent. No answer claims complete coverage."
+  },
+  "bucket": "15min",
+  "timezone": "UTC",
+  "groupBy": "harness,channel",
+  "layout": "objects",
+  "lastCommitAt": "2026-11-16T15:03:58.123Z",
+  "buckets": [
+    {
+      "start": "2026-11-16T12:00:00.000Z",
+      "end": "2026-11-16T12:15:00.000Z"
+    }
+  ],
+  "groups": [
+    {
+      "key": "claude | subscription",
+      "keys": [
+        "claude",
+        "subscription"
+      ],
+      "values": [
+        {
+          "responses": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite5m": 0,
+            "cacheWrite1h": 0,
+            "cacheWriteUnsplit": 0
+          },
+          "knownCostUSD": "0",
+          "costUSD": "0",
+          "unpriced": 0,
+          "nonTerminal": 0,
+          "unknownCounter": 0,
+          "routeAssumed": 0,
+          "durationInferred": 0,
+          "providerUnknown": 0,
+          "subscription": {
+            "responses": 1,
+            "tokens": {
+              "input": 10,
+              "output": 10,
+              "cacheRead": 100,
+              "cacheWrite5m": 0,
+              "cacheWrite1h": 0,
+              "cacheWriteUnsplit": 0
+            },
+            "nonTerminal": 0,
+            "unknownCounter": 0,
+            "knownCostUSD": "0",
+            "costUSD": "0",
+            "priced": 0,
+            "unpriced": 0
+          }
+        }
+      ]
+    },
+    {
+      "key": "pi | metered",
+      "keys": [
+        "pi",
+        "metered"
+      ],
+      "values": [
+        {
+          "responses": 1,
+          "tokens": {
+            "input": 10,
+            "output": 10,
+            "cacheRead": 100,
+            "cacheWrite5m": 0,
+            "cacheWrite1h": 0,
+            "cacheWriteUnsplit": 0
+          },
+          "knownCostUSD": "0.0005",
+          "costUSD": "0.0005",
+          "unpriced": 0,
+          "nonTerminal": 0,
+          "unknownCounter": 0,
+          "routeAssumed": 1,
+          "durationInferred": 0,
+          "providerUnknown": 0,
+          "subscription": {
+            "responses": 0,
+            "tokens": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite5m": 0,
+              "cacheWrite1h": 0,
+              "cacheWriteUnsplit": 0
+            },
+            "nonTerminal": 0,
+            "unknownCounter": 0,
+            "knownCostUSD": "0",
+            "costUSD": "0",
+            "priced": 0,
+            "unpriced": 0
+          }
+        }
+      ]
+    },
+    {
+      "key": "pi | subscription:faux",
+      "keys": [
+        "pi",
+        "subscription:faux"
+      ],
+      "values": [
+        {
+          "responses": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite5m": 0,
+            "cacheWrite1h": 0,
+            "cacheWriteUnsplit": 0
+          },
+          "knownCostUSD": "0",
+          "costUSD": "0",
+          "unpriced": 0,
+          "nonTerminal": 0,
+          "unknownCounter": 0,
+          "routeAssumed": 0,
+          "durationInferred": 0,
+          "providerUnknown": 0,
+          "subscription": {
+            "responses": 1,
+            "tokens": {
+              "input": 10,
+              "output": 1000,
+              "cacheRead": 100,
+              "cacheWrite5m": 0,
+              "cacheWrite1h": 0,
+              "cacheWriteUnsplit": 500
+            },
+            "nonTerminal": 0,
+            "unknownCounter": 0,
+            "knownCostUSD": "0",
+            "costUSD": "0",
+            "priced": 0,
+            "unpriced": 0
+          }
+        }
+      ]
+    },
+    {
+      "key": "pi | subscription:github-copilot",
+      "keys": [
+        "pi",
+        "subscription:github-copilot"
+      ],
+      "values": [
+        {
+          "responses": 0,
+          "tokens": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite5m": 0,
+            "cacheWrite1h": 0,
+            "cacheWriteUnsplit": 0
+          },
+          "knownCostUSD": "0",
+          "costUSD": "0",
+          "unpriced": 0,
+          "nonTerminal": 0,
+          "unknownCounter": 0,
+          "routeAssumed": 0,
+          "durationInferred": 0,
+          "providerUnknown": 0,
+          "subscription": {
+            "responses": 3,
+            "tokens": {
+              "input": 30,
+              "output": 3000,
+              "cacheRead": 300,
+              "cacheWrite5m": 0,
+              "cacheWrite1h": 0,
+              "cacheWriteUnsplit": 1500
+            },
+            "nonTerminal": 0,
+            "unknownCounter": 0,
+            "knownCostUSD": "0.02131",
+            "costUSD": null,
+            "priced": 2,
+            "unpriced": 1
+          }
+        }
+      ]
+    }
+  ]
+}

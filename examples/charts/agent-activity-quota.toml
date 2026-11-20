@@ -1,0 +1,163 @@
+# Opt-in Claude plan quota profile: two explicit wrappers, no money.
+#
+# Sidescope never loads this file by itself. Copy the tables you want into your
+# own configuration file by hand; having a [[chart_sources]] entry there is the
+# enablement. It is a third profile beside agent-activity.toml and
+# agent-activity-filtered.toml and is never merged into either, so an older
+# producer is never silently handed quota cards. The commands run with this
+# application's authority, not in a sandbox. Each wrapper starts exactly one
+# producer command as its own child (no shell, no other query) and reads at most
+# 1 MiB from it; nothing here installs, starts or authenticates the collector.
+#
+# Replace every /REPLACE/WITH/PATH placeholder below with the real path of the
+# wrapper script (the wrappers are single files you may copy anywhere). Sidescope
+# does not search for them.
+#
+# Check each feature by hand before adopting its cards; passing is the author's
+# judgement, never an automatic probe:
+#
+#   estimated contribution cards:
+#     agent-activity ledger capabilities --format json
+#       passes only when .series.columns lists subscriptionWeeklyPercent,
+#       subscriptionWeeklyUnweighted, subscriptionFiveHourPercent and
+#       subscriptionFiveHourUnweighted. A successful probe alone is not enough.
+#   observed utilization cards:
+#     agent-activity quota series --format json --window five_hour
+#       passes when it exits 0. It reads the retained journal only.
+#
+# Two different quantities, never overlaid or summed:
+#   * Estimated contribution is percentage POINTS of plan quota that recorded
+#     subscription responses are estimated to have used. The weights are fitted
+#     by the producer from one owner's readings and are not published by the
+#     provider; estimated points are not the bar. A window sum can exceed 100.
+#     The unit is "percentage points", so a bounded-percent card on it is refused.
+#   * Observed utilization is the provider's reported bar level at each
+#     successful reading, per account and window, a gauge that is never summed.
+#     Readings are about 15 minutes apart and the chart claims nothing between
+#     them. Its answer is the v1.1 sampled-gauge payload.
+# No account link is known: a ledger estimate carries no account key, so which
+# observed account an estimate belongs to is unknown, and none is inferred.
+#
+# Money caveat: these cards are quota, not dollars. Percent text never becomes
+# dollars and the wrappers never convert it. Claude Code used with a direct API
+# key is classified `subscription` upstream and may be counted in the estimate;
+# the wrappers do not correct it. A model with no fitted weight shows as its own
+# partial series (a lower bound), never a complete zero.
+
+[[chart_sources]]
+id = "quota-estimate"
+command = [
+  "/REPLACE/WITH/PATH/quota-estimate.py",
+  "--quota", "weekly", "--bucket", "day", "--group-by", "model",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "sidescope-chart-v1"
+calendar_days = 5
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 60
+
+# Optional: the same query by workspace directory ("project").
+[[chart_sources]]
+id = "quota-estimate-projects"
+command = [
+  "/REPLACE/WITH/PATH/quota-estimate.py",
+  "--quota", "weekly", "--bucket", "day", "--group-by", "project",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "sidescope-chart-v1"
+calendar_days = 5
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 60
+
+[[chart_sources]]
+id = "quota-estimate-recent"
+command = [
+  "/REPLACE/WITH/PATH/quota-estimate.py",
+  "--quota", "five-hour", "--bucket", "5min", "--group-by", "none",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "sidescope-chart-v1"
+window = "5h"
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 60
+
+# Observed readings: one source and one card per account and quota window.
+# Find the account key in the output of `agent-activity quota series --format json`.
+[[chart_sources]]
+id = "quota-observed-primary-five_hour"
+command = [
+  "/REPLACE/WITH/PATH/quota-observed.py",
+  "--account-key", "REPLACE-WITH-ACCOUNT-KEY", "--window", "five_hour",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "sidescope-chart-v1"
+window = "24h"
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 300
+
+[[chart_sources]]
+id = "quota-observed-primary-seven_day"
+command = [
+  "/REPLACE/WITH/PATH/quota-observed.py",
+  "--account-key", "REPLACE-WITH-ACCOUNT-KEY", "--window", "seven_day",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "sidescope-chart-v1"
+window = "7d"
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 300
+
+[[chart_cards]]
+id = "quota-weekly-daily"
+source = "quota-estimate"
+kind = "time-bars"
+metric = "weekly_quota_points"
+title = "Estimated weekly quota contribution by date (points)"
+summary = "sum"
+stack_by = "model"
+group_by = ["model"]
+
+[[chart_cards]]
+id = "quota-weekly-by-model"
+source = "quota-estimate"
+kind = "ranked-bars"
+metric = "weekly_quota_points"
+title = "Estimated weekly quota contribution by model (points)"
+group_by = ["model"]
+top_n = 5
+
+[[chart_cards]]
+id = "quota-weekly-by-project"
+source = "quota-estimate-projects"
+kind = "ranked-bars"
+metric = "weekly_quota_points"
+title = "Estimated weekly quota contribution by project (points)"
+group_by = ["project"]
+top_n = 5
+
+[[chart_cards]]
+id = "quota-five-hour-recent"
+source = "quota-estimate-recent"
+kind = "time-series"
+metric = "five_hour_quota_points"
+title = "Estimated five-hour quota contribution (points per 5 min)"
+summary = "sum"
+group_by = []
+
+[[chart_cards]]
+id = "quota-observed-primary-five_hour"
+source = "quota-observed-primary-five_hour"
+kind = "time-series"
+metric = "observed_percent"
+title = "Last observed five-hour quota utilization"
+summary = "last"
+group_by = []
+
+[[chart_cards]]
+id = "quota-observed-primary-seven_day"
+source = "quota-observed-primary-seven_day"
+kind = "time-series"
+metric = "observed_percent"
+title = "Last observed seven-day quota utilization"
+summary = "last"
+group_by = []

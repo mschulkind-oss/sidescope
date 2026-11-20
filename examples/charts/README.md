@@ -11,6 +11,10 @@ before enabling it and replace the example executable names with your own paths.
 | [`synthetic-latency.sh`](./synthetic-latency.sh) | The same contract for an unrelated source: a millisecond gauge for two example services. Same widgets, no usage vocabulary |
 | [`agent-activity.toml`](./agent-activity.toml) | Opt-in profile for the `agent-activity ledger series` CLI using the generic `columns-v1` mapper: 3 h at minute resolution, five calendar dates by project, by model, and subscription activity |
 | [`fake-ledger.sh`](./fake-ledger.sh) | Prints a synthetic ledger-shaped answer from `tests/fixtures/charts/ledger/` so the profile can run end to end: swap each source's `command` for this script (it ignores the time window) |
+| [`agent-activity-filtered.toml`](./agent-activity-filtered.toml) | Opt-in money profile beside the legacy one: `recent` asks for no grouping, the metered channel and only the mapped columns; day sources name their columns; adds a GitHub Copilot list-price estimate. Needs a producer whose capabilities probe succeeds |
+| [`agent-activity-quota.toml`](./agent-activity-quota.toml) | Opt-in Claude plan quota profile: estimated contribution cards and observed utilization cards, run through the two wrappers below. Contains no money |
+| [`quota-estimate.py`](./quota-estimate.py) | Python 3 (standard library) wrapper: runs one `agent-activity ledger series` query and prints a `sidescope-chart-v1` answer of estimated quota points, exact decimals, unit `percentage points`. `--convert-stdin` converts an answer from standard input and runs nothing |
+| [`quota-observed.py`](./quota-observed.py) | Python 3 wrapper: runs one `agent-activity quota series` query and prints a `sidescope-chart-v1.1` sampled gauge of one account and window, with breaks at resets and long gaps. Same `--convert-stdin` mode |
 
 ## Reading the usage-cost profile
 
@@ -67,3 +71,28 @@ same application with the same environment variable).
    configuration by hand. Report problems with the exact card and Info text.
 
 Remove the trial with `rm -r "$HOME/.cache/sidescope-charts-try"`.
+
+## Choosing a profile, and the quota caveats
+
+Probe by hand; Sidescope never probes, rewrites a query or falls back:
+
+- **Legacy** `agent-activity.toml` works with any producer that has `--layout columns`.
+- **Filtered** needs `agent-activity ledger capabilities --format json` to succeed. Against an older
+  producer it fails visibly as a nonzero exit.
+- **Quota** estimate cards need that same output to list the four quota columns
+  (`.series.columns` keys `subscriptionWeeklyPercent`, `subscriptionWeeklyUnweighted`,
+  `subscriptionFiveHourPercent`, `subscriptionFiveHourUnweighted`); a successful probe alone is not enough.
+  Observed cards need `agent-activity quota series --format json --window five_hour` to exit 0.
+
+The three profiles are never merged. Replace the `/REPLACE/WITH/PATH` wrapper paths and the
+`REPLACE-WITH-ACCOUNT-KEY` placeholder by hand (the account key is in the output of the observed command).
+
+- Quota is not money and an estimate is not a reading. Estimated points are fitted from one owner's
+  readings, are not published by the provider, are not the bar, can sum above 100, and exclude resets
+  and other clients. Observed readings are the provider's reported level, about 15 minutes apart, and
+  nothing is drawn between them. The two are never overlaid; no account link is known.
+- A model with no fitted weight is a partial series (a lower bound), never a complete zero.
+- Claude Code used with a direct API key is classified `subscription` upstream and may be counted.
+- Both wrappers refuse rather than trim: over 2048 readings or buckets, 256 series, 100000 cells,
+  1 MiB of producer output, an oversized notice or invalid input exits 1 with nothing printed.
+  Read the wrapper before enabling it; it runs with Sidescope's authority.

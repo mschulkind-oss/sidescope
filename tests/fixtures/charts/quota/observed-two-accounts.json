@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-16T15:04:05.123Z",
+  "range": {
+    "from": "2026-11-16T12:00:00Z",
+    "to": "2026-11-16T15:00:00Z"
+  },
+  "retentionDays": 7,
+  "truncated": false,
+  "accounts": [
+    {
+      "provider": "claude",
+      "accountKey": "acct-a",
+      "accountLabel": "Work",
+      "at": [
+        "2026-11-16T12:00:00Z",
+        "2026-11-16T12:15:00Z",
+        "2026-11-16T12:30:00Z"
+      ],
+      "windows": [
+        {
+          "id": "five_hour",
+          "label": "five_hour",
+          "percent": [
+            10,
+            20.5,
+            30
+          ],
+          "resets": [],
+          "edges": []
+        },
+        {
+          "id": "seven_day",
+          "label": "seven_day",
+          "percent": [
+            41,
+            42,
+            43
+          ],
+          "resets": [],
+          "edges": []
+        }
+      ]
+    },
+    {
+      "provider": "claude",
+      "accountKey": "acct-b",
+      "accountLabel": "Home",
+      "at": [
+        "2026-11-16T12:00:00Z",
+        "2026-11-16T12:15:00Z",
+        "2026-11-16T12:30:00Z"
+      ],
+      "windows": [
+        {
+          "id": "five_hour",
+          "label": "five_hour",
+          "percent": [
+            1,
+            2,
+            3
+          ],
+          "resets": [],
+          "edges": []
+        },
+        {
+          "id": "seven_day",
+          "label": "seven_day",
+          "percent": [
+            7,
+            8,
+            9
+          ],
+          "resets": [],
+          "edges": []
+        }
+      ]
+    }
+  ]
+}

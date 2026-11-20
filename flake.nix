@@ -38,7 +38,7 @@
         default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [ pkg-config rustc cargo clippy rustfmt clang ];
           buildInputs = with pkgs; [ gtk4 libadwaita ];
-          packages = with pkgs; [ sway-unwrapped grim wtype dbus file jq just ];
+          packages = with pkgs; [ sway-unwrapped grim wtype dbus file jq just python3 ];
           shellHook = ''
             export GDK_BACKEND=wayland
             # Isolate Nix-built artifacts from a host/mise Rust toolchain.

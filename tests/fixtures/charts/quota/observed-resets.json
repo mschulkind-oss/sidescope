@@ -1,0 +1,78 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-16T15:04:05.123Z",
+  "range": {
+    "from": "2026-11-16T12:00:00Z",
+    "to": "2026-11-16T15:00:00Z"
+  },
+  "retentionDays": 7,
+  "truncated": false,
+  "accounts": [
+    {
+      "provider": "claude",
+      "accountKey": "acct-a",
+      "accountLabel": "Work",
+      "at": [
+        "2026-11-16T12:00:00Z",
+        "2026-11-16T12:15:00Z",
+        "2026-11-16T12:30:00Z",
+        "2026-11-16T12:45:00Z",
+        "2026-11-16T13:00:00Z"
+      ],
+      "windows": [
+        {
+          "id": "five_hour",
+          "label": "five_hour",
+          "percent": [
+            90,
+            95,
+            3,
+            4,
+            5
+          ],
+          "resets": [
+            {
+              "index": 0,
+              "resetsAt": "2026-11-16T13:00:00Z"
+            },
+            {
+              "index": 2,
+              "resetsAt": "2026-11-16T17:30:00Z"
+            },
+            {
+              "index": 4,
+              "resetsAt": "2026-11-16T17:45:00Z"
+            }
+          ],
+          "edges": [
+            {
+              "index": 2,
+              "kind": "reset_changed",
+              "utilizationDelta": null
+            },
+            {
+              "index": 3,
+              "kind": "usage_changed",
+              "utilizationDelta": null
+            },
+            {
+              "index": 3,
+              "kind": "limit_changed",
+              "utilizationDelta": null
+            },
+            {
+              "index": 4,
+              "kind": "limit_changed",
+              "utilizationDelta": null
+            },
+            {
+              "index": 4,
+              "kind": "window_added",
+              "utilizationDelta": null
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

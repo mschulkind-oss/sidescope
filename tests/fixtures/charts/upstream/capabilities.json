@@ -1,0 +1,155 @@
+{
+  "version": "ledger-v1",
+  "series": {
+    "layouts": [
+      "objects",
+      "columns"
+    ],
+    "buckets": [
+      "minute",
+      "5min",
+      "15min",
+      "hour",
+      "day"
+    ],
+    "dimensions": [
+      "model",
+      "workspace",
+      "role",
+      "harness",
+      "channel"
+    ],
+    "groupNone": "none",
+    "filters": [
+      "workspace",
+      "model",
+      "harness",
+      "role",
+      "channel"
+    ],
+    "limits": {
+      "buckets": 400,
+      "values": 60000,
+      "groupDimensions": 3
+    },
+    "columnsOmitAllZero": true,
+    "decimal": {
+      "format": "plain",
+      "maxFractionDigits": 12
+    },
+    "columns": {
+      "cacheRead": {
+        "unit": "tokens",
+        "quantity": "interval_total",
+        "channel": "metered",
+        "estimate": false
+      },
+      "cacheWrite": {
+        "unit": "tokens",
+        "quantity": "interval_total",
+        "channel": "metered",
+        "estimate": false
+      },
+      "input": {
+        "unit": "tokens",
+        "quantity": "interval_total",
+        "channel": "metered",
+        "estimate": false
+      },
+      "knownCostUSD": {
+        "unit": "USD",
+        "quantity": "interval_total",
+        "channel": "metered",
+        "estimate": true,
+        "completenessColumn": "unpriced"
+      },
+      "output": {
+        "unit": "tokens",
+        "quantity": "interval_total",
+        "channel": "metered",
+        "estimate": false
+      },
+      "responses": {
+        "unit": "count",
+        "quantity": "interval_total",
+        "channel": "metered",
+        "estimate": false
+      },
+      "subscriptionCacheRead": {
+        "unit": "tokens",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": false
+      },
+      "subscriptionCacheWrite": {
+        "unit": "tokens",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": false
+      },
+      "subscriptionFiveHourPercent": {
+        "unit": "percent",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": true,
+        "completenessColumn": "subscriptionFiveHourUnweighted"
+      },
+      "subscriptionFiveHourUnweighted": {
+        "unit": "count",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": false
+      },
+      "subscriptionInput": {
+        "unit": "tokens",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": false
+      },
+      "subscriptionKnownCostUSD": {
+        "unit": "USD",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": true,
+        "completenessColumn": "subscriptionUnpriced"
+      },
+      "subscriptionOutput": {
+        "unit": "tokens",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": false
+      },
+      "subscriptionResponses": {
+        "unit": "count",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": false
+      },
+      "subscriptionUnpriced": {
+        "unit": "count",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": false
+      },
+      "subscriptionWeeklyPercent": {
+        "unit": "percent",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": true,
+        "completenessColumn": "subscriptionWeeklyUnweighted"
+      },
+      "subscriptionWeeklyUnweighted": {
+        "unit": "count",
+        "quantity": "interval_total",
+        "channel": "subscription",
+        "estimate": false
+      },
+      "unpriced": {
+        "unit": "count",
+        "quantity": "interval_total",
+        "channel": "metered",
+        "estimate": false
+      }
+    }
+  }
+}

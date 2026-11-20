@@ -1,0 +1,284 @@
+# Opt-in "filtered" usage-cost profile for the `agent-activity ledger series` CLI.
+#
+# Sidescope never loads this file by itself. Copy the tables you want into
+# your own configuration file by hand; having a [[chart_sources]] entry there
+# is the enablement. The commands run with this application's authority, not
+# in a sandbox, and nothing here installs, starts or authenticates the
+# collector. Sidescope never probes the producer and never rewrites a query or
+# falls back to the legacy profile when one fails.
+#
+# Choose between this profile and the legacy `agent-activity.toml` by hand:
+#
+#   agent-activity ledger capabilities --format json
+#
+# If that succeeds (the producer is at least the build that added series
+# capabilities), this profile works. Otherwise keep the legacy profile. A
+# filtered profile against an older producer fails visibly as a nonzero exit
+# of the source, never as an empty success. A successful probe shows only that
+# the command exists; it does not show the collector is current.
+#
+# Difference from the legacy profile: `recent` asks for no grouping, the
+# metered channel and the two columns it maps, so its card is one line instead
+# of a merge of per-project groups; each day source names the columns it maps
+# with --columns. Cards that stack set `group_by` beside `stack_by`.
+#
+# What the numbers are: the metered cards show a *list-price estimate* of
+# metered responses, not an invoice, and omit fixed fees, discounts, taxes and
+# any activity the collector has not seen. A response with no known price is
+# counted in `unpriced`; its cell is "partial" (a lower bound, shown as
+# "incomplete"), never complete. Flat-rate subscription usage has no
+# per-response dollar figure: it appears as a response count, and a chart of
+# what a plan spends reads zero dollars, so chart plan limits with the separate
+# opt-in plan-limit profile beside this one instead. The Copilot card is the provider-priced
+# list-price estimate of that one subscription channel; it is never added to
+# the metered cost. Claude Code used with a direct API key is classified
+# `subscription` upstream and may be counted there; nothing here corrects it.
+#
+# Omitted columns are zero because the producer omits a column that is all
+# zero; each metric opts in with `omitted = "zero"`. An explicit null stays
+# missing. Query limits upstream: 400 buckets per answer and 60,000
+# group x bucket values; the --bucket argument is literal and never inferred
+# from the window.
+#
+# "project" is a display name for the ledger's workspace label, not an
+# inferred project identity.
+
+[[chart_sources]]
+id = "recent"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "minute", "--group-by", "none",
+  "--channel", "metered",
+  "--columns", "knownCostUSD,unpriced",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+window = "3h"
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 30
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = []                  # group-none: one group with no keys
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+notices = ["/coverage/statement"]
+
+[[chart_sources.mapping.metrics]]
+id = "metered_cost"
+label = "Metered list-price estimate"
+unit = "USD"
+quantity = "interval_total"
+estimate = true
+unknown_contribution = "nonnegative"
+values = "/columns/knownCostUSD"
+quality_counter = "/columns/unpriced"
+omitted = "zero"
+
+[[chart_sources]]
+id = "daily"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "day", "--group-by", "workspace",
+  "--columns", "knownCostUSD,unpriced",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+calendar_days = 5
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 60
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = [{ name = "project", pointer = "/keys/0" }]
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+notices = ["/coverage/statement"]
+
+[[chart_sources.mapping.metrics]]
+id = "metered_cost"
+label = "Metered list-price estimate"
+unit = "USD"
+quantity = "interval_total"
+estimate = true
+unknown_contribution = "nonnegative"
+values = "/columns/knownCostUSD"
+quality_counter = "/columns/unpriced"
+omitted = "zero"
+
+# Optional: the same five dates by model instead of by project.
+[[chart_sources]]
+id = "models"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "day", "--group-by", "model",
+  "--columns", "knownCostUSD,unpriced",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+calendar_days = 5
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 60
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = [{ name = "model", pointer = "/keys/0", unknown_value = "(unknown)" }]
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+notices = ["/coverage/statement"]
+
+[[chart_sources.mapping.metrics]]
+id = "metered_cost"
+label = "Metered list-price estimate"
+unit = "USD"
+quantity = "interval_total"
+estimate = true
+unknown_contribution = "nonnegative"
+values = "/columns/knownCostUSD"
+quality_counter = "/columns/unpriced"
+omitted = "zero"
+
+# Optional: subscription activity as a response count, kept apart from the metered estimate.
+[[chart_sources]]
+id = "subscription"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "day", "--group-by", "channel",
+  "--columns", "subscriptionResponses",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+calendar_days = 5
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 60
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = [{ name = "channel", pointer = "/keys/0" }]
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+notices = ["/coverage/statement"]
+
+[[chart_sources.mapping.metrics]]
+id = "subscription_responses"
+label = "Subscription responses (not metered)"
+unit = "responses"
+quantity = "interval_total"
+values = "/columns/subscriptionResponses"
+omitted = "zero"
+
+# Optional: the provider-priced list-price estimate of one subscription provider (GitHub Copilot).
+[[chart_sources]]
+id = "copilot-cost"
+command = [
+  "agent-activity", "ledger", "series",
+  "--format", "json", "--layout", "columns",
+  "--bucket", "day", "--group-by", "none",
+  "--channel", "subscription:github-copilot",
+  "--columns", "subscriptionKnownCostUSD,subscriptionUnpriced",
+  "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}",
+]
+format = "columns-v1"
+calendar_days = 5
+timezone = "America/New_York"   # example only; the owner chooses the zone
+refresh_seconds = 60
+
+[chart_sources.mapping]
+buckets = "/buckets"
+interval_start = "/start"
+interval_end = "/end"
+groups = "/groups"
+dimensions = []
+range_start = "/range/from"
+range_end = "/range/to"
+generated_at = "/generatedAt"
+revision = "/generation"
+notices = ["/coverage/statement"]
+
+[[chart_sources.mapping.metrics]]
+id = "subscription_cost"
+label = "Provider-priced subscription estimate"
+unit = "USD"
+quantity = "interval_total"
+estimate = true
+unknown_contribution = "nonnegative"
+values = "/columns/subscriptionKnownCostUSD"
+quality_counter = "/columns/subscriptionUnpriced"
+omitted = "zero"
+
+[[chart_cards]]
+id = "recent-cost"
+source = "recent"
+kind = "time-series"
+metric = "metered_cost"
+title = "Metered list-price estimate (≈3h · 1 min)"
+summary = "sum"
+
+[[chart_cards]]
+id = "daily-cost"
+source = "daily"
+kind = "time-bars"
+metric = "metered_cost"
+title = "Metered list-price estimate (last 5 dates)"
+summary = "sum"
+stack_by = "project"
+group_by = ["project"]
+
+[[chart_cards]]
+id = "project-ranking"
+source = "daily"
+kind = "ranked-bars"
+metric = "metered_cost"
+title = "Metered list-price estimate by project"
+group_by = ["project"]
+top_n = 5
+
+[[chart_cards]]
+id = "model-ranking"
+source = "models"
+kind = "ranked-bars"
+metric = "metered_cost"
+title = "Metered list-price estimate by model"
+group_by = ["model"]
+top_n = 5
+
+[[chart_cards]]
+id = "subscription-activity"
+source = "subscription"
+kind = "time-bars"
+metric = "subscription_responses"
+title = "Subscription responses (not metered)"
+stack_by = "channel"
+group_by = ["channel"]
+
+[[chart_cards]]
+id = "copilot-estimate"
+source = "copilot-cost"
+kind = "time-bars"
+metric = "subscription_cost"
+title = "GitHub Copilot list-price estimate"
+summary = "sum"

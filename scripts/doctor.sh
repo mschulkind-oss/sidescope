@@ -34,6 +34,7 @@ if [[ "$MODE" != --visual ]]; then
   check_command rustc 'Rust compiler'
   check_command cc 'C compiler / linker'
   check_command pkg-config 'native library discovery'
+  check_command python3 'quota wrapper tests'
   check_library gtk4 'GTK4 widgets'
   check_library libadwaita-1 'libadwaita widgets'
 fi
