@@ -52,6 +52,16 @@ pub enum Action {
     },
 }
 
+/// How long a source stays scheduled after an attempt ends.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RunPolicy {
+    /// Refresh, back off and retry for as long as the runtime lives.
+    Continuous,
+    /// A source gets no next due after its first terminal attempt. A deferred
+    /// request is retried once; a second deferral is terminal.
+    OneShot,
+}
+
 #[derive(Debug)]
 struct Entry {
     config: ChartSourceConfig,
@@ -61,9 +71,11 @@ struct Entry {
     failures: u32,
     suspended: bool,
     queued_refresh: bool,
+    deferrals: u32,
 }
 
 pub struct Scheduler {
+    policy: RunPolicy,
     entries: Vec<Entry>,
     /// Cancelled runs whose workers have not reported yet; they still hold a
     /// concurrency slot and block a new run of the same source.
@@ -74,7 +86,16 @@ pub struct Scheduler {
 
 impl Scheduler {
     pub fn new(sources: &[ChartSourceConfig], max_concurrent: usize) -> Scheduler {
+        Self::new_with_policy(sources, max_concurrent, RunPolicy::Continuous)
+    }
+
+    pub fn new_with_policy(
+        sources: &[ChartSourceConfig],
+        max_concurrent: usize,
+        policy: RunPolicy,
+    ) -> Scheduler {
         let mut scheduler = Scheduler {
+            policy,
             entries: Vec::new(),
             draining: Vec::new(),
             max_concurrent: max_concurrent.max(1),
@@ -100,6 +121,7 @@ impl Scheduler {
             failures: 0,
             suspended: false,
             queued_refresh: false,
+            deferrals: 0,
         }
     }
 
@@ -140,7 +162,8 @@ impl Scheduler {
         match event {
             Event::Tick => {}
             Event::RefreshRequested { source } | Event::RetryRequested { source } => {
-                if let Some(entry) = self.find_mut(&source) {
+                let one_shot = self.policy == RunPolicy::OneShot;
+                if let Some(entry) = self.find_mut(&source).filter(|_| !one_shot) {
                     entry.suspended = false;
                     if entry.running.is_some() {
                         entry.queued_refresh = true;
@@ -166,12 +189,21 @@ impl Scheduler {
                     .position(|(id, rev)| *id == source && *rev == revision)
                 {
                     self.draining.remove(index);
-                } else if let Some(entry) = self.find_mut(&source)
-                    && entry.running == Some(revision)
-                {
-                    entry.running = None;
-                    entry.queued_refresh = false;
-                    entry.due = Some(now + retry_after);
+                } else {
+                    let one_shot = self.policy == RunPolicy::OneShot;
+                    if let Some(entry) = self.find_mut(&source)
+                        && entry.running == Some(revision)
+                    {
+                        entry.running = None;
+                        entry.queued_refresh = false;
+                        entry.deferrals = entry.deferrals.saturating_add(1);
+                        if one_shot && entry.deferrals >= 2 {
+                            entry.due = None;
+                            actions.push(Action::Publish { source });
+                        } else {
+                            entry.due = Some(now + retry_after);
+                        }
+                    }
                 }
             }
         }
@@ -233,6 +265,7 @@ impl Scheduler {
             self.draining.remove(index);
             return;
         }
+        let one_shot = self.policy == RunPolicy::OneShot;
         let Some(entry) = self.find_mut(source) else {
             return;
         };
@@ -240,6 +273,14 @@ impl Scheduler {
             return;
         }
         entry.running = None;
+        if one_shot {
+            entry.due = None;
+            entry.queued_refresh = false;
+            actions.push(Action::Publish {
+                source: source.to_string(),
+            });
+            return;
+        }
         let refresh = entry.config.refresh();
         match outcome {
             Ok(()) => {
@@ -312,5 +353,137 @@ impl Scheduler {
             })
             .filter_map(|entry| entry.due)
             .min()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn source(id: &str) -> ChartSourceConfig {
+        toml::from_str(&format!(
+            "id = \"{id}\"\ncommand = [\"x\"]\nformat = \"sidescope-chart-v1\"\nwindow = \"1h\"\ntimezone = \"UTC\"\nrefresh_seconds = 5\n"
+        ))
+        .unwrap()
+    }
+
+    fn secs(n: u64) -> Duration {
+        Duration::from_secs(n)
+    }
+
+    fn starts(actions: &[Action]) -> usize {
+        actions
+            .iter()
+            .filter(|action| matches!(action, Action::Start { .. }))
+            .count()
+    }
+
+    fn started(scheduler: &mut Scheduler) -> u64 {
+        let actions = scheduler.step(secs(0), Event::Tick);
+        let Some(Action::Start { revision, .. }) = actions.first() else {
+            panic!("nothing started: {actions:?}");
+        };
+        *revision
+    }
+
+    #[test]
+    fn a_finished_one_shot_source_is_never_started_again() {
+        let sources = [source("a"), source("b")];
+        for outcome in [
+            Ok(()),
+            Err(ChartError::new(
+                crate::chart::error::ChartErrorKind::NonzeroExit,
+                "failed",
+            )),
+        ] {
+            let mut scheduler = Scheduler::new_with_policy(&sources, 4, RunPolicy::OneShot);
+            let first = scheduler.step(secs(0), Event::Tick);
+            assert_eq!(starts(&first), 2);
+            let revision = scheduler.revision("a").unwrap();
+            let done = scheduler.step(
+                secs(1),
+                Event::Finished {
+                    source: "a".into(),
+                    revision,
+                    outcome,
+                },
+            );
+            assert_eq!(done, [Action::Publish { source: "a".into() }]);
+            assert_eq!(scheduler.next_due("a"), None);
+            // Neither the refresh interval, a manual refresh nor a retry request restarts it.
+            for event in [
+                Event::Tick,
+                Event::RefreshRequested { source: "a".into() },
+                Event::RetryRequested { source: "a".into() },
+            ] {
+                assert_eq!(scheduler.step(secs(600), event), []);
+            }
+            assert_eq!(scheduler.next_wake(), None);
+        }
+    }
+
+    #[test]
+    fn a_one_shot_deferral_retries_once_and_the_second_is_terminal() {
+        let mut scheduler = Scheduler::new_with_policy(&[source("a")], 4, RunPolicy::OneShot);
+        let revision = started(&mut scheduler);
+        let first = scheduler.step(
+            secs(0),
+            Event::Deferred {
+                source: "a".into(),
+                revision,
+                retry_after: secs(1),
+            },
+        );
+        assert_eq!(first, []);
+        assert_eq!(scheduler.next_due("a"), Some(secs(1)));
+        let retry = scheduler.step(secs(1), Event::Tick);
+        assert_eq!(
+            retry,
+            [Action::Start {
+                source: "a".into(),
+                revision
+            }]
+        );
+        let second = scheduler.step(
+            secs(1),
+            Event::Deferred {
+                source: "a".into(),
+                revision,
+                retry_after: secs(1),
+            },
+        );
+        assert_eq!(second, [Action::Publish { source: "a".into() }]);
+        assert_eq!(scheduler.next_due("a"), None);
+        assert_eq!(scheduler.step(secs(60), Event::Tick), []);
+    }
+
+    #[test]
+    fn continuous_scheduling_keeps_refreshing_and_retrying_deferrals() {
+        let mut scheduler = Scheduler::new(&[source("a")], 4);
+        let revision = started(&mut scheduler);
+        for round in 0..3 {
+            let actions = scheduler.step(
+                secs(round),
+                Event::Deferred {
+                    source: "a".into(),
+                    revision,
+                    retry_after: secs(1),
+                },
+            );
+            assert_eq!(actions, [], "round {round}");
+            let retry = scheduler.step(secs(round + 1), Event::Tick);
+            assert_eq!(starts(&retry), 1, "round {round}");
+        }
+        scheduler.step(
+            secs(10),
+            Event::Finished {
+                source: "a".into(),
+                revision,
+                outcome: Ok(()),
+            },
+        );
+        assert_eq!(scheduler.next_due("a"), Some(secs(15)));
+        assert_eq!(starts(&scheduler.step(secs(15), Event::Tick)), 1);
+        scheduler.step(secs(16), Event::RefreshRequested { source: "a".into() });
     }
 }

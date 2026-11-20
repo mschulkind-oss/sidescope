@@ -107,6 +107,14 @@ pub struct Captured {
     pub stderr: String,
 }
 
+/// Exit-0 output as bytes, whether or not it is UTF-8.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RawCaptured {
+    pub stdout: Vec<u8>,
+    /// Lossy UTF-8 of at most `CaptureLimits::stderr` leading bytes.
+    pub stderr: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RunFailure {
     MissingExecutable,
@@ -174,6 +182,21 @@ pub fn run_with_stderr(
     cancel: &CancelToken,
     stderr_bytes: &mut Vec<u8>,
 ) -> Result<Captured, RunFailure> {
+    let raw = run_raw(command, limits, cancel, stderr_bytes)?;
+    Ok(Captured {
+        stdout: String::from_utf8(raw.stdout).map_err(|_| RunFailure::NotUtf8)?,
+        stderr: raw.stderr,
+    })
+}
+
+/// Like `run_with_stderr`, but successful stdout is returned as the exact
+/// bytes the command wrote, so a caller can keep output that is not UTF-8.
+pub fn run_raw(
+    command: &mut Command,
+    limits: &CaptureLimits,
+    cancel: &CancelToken,
+    stderr_bytes: &mut Vec<u8>,
+) -> Result<RawCaptured, RunFailure> {
     let start = Instant::now();
     command
         .process_group(0)
@@ -254,8 +277,8 @@ pub fn run_with_stderr(
             if let Some(pipe) = stderr.as_mut() {
                 drain_pipe(pipe, stderr_bytes, limits.stderr);
             }
-            return Ok(Captured {
-                stdout: String::from_utf8(bytes).map_err(|_| RunFailure::NotUtf8)?,
+            return Ok(RawCaptured {
+                stdout: bytes,
                 stderr: String::from_utf8_lossy(stderr_bytes).into_owned(),
             });
         }
@@ -502,5 +525,34 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn raw_stdout_keeps_bytes_that_are_not_utf8_while_the_text_entry_refuses_them() {
+        let limits = CaptureLimits {
+            stdout: 1024,
+            stderr: 0,
+            timeout: Duration::from_secs(5),
+        };
+        let command = || {
+            let mut command = Command::new("sh");
+            command.arg("-c").arg("printf '\\377\\376{'");
+            command
+        };
+        let raw = run_raw(
+            &mut command(),
+            &limits,
+            &CancelToken::new(),
+            &mut Vec::new(),
+        )
+        .unwrap();
+        assert_eq!(raw.stdout, [0xff, 0xfe, b'{']);
+        let text = run_with_stderr(
+            &mut command(),
+            &limits,
+            &CancelToken::new(),
+            &mut Vec::new(),
+        );
+        assert_eq!(text, Err(RunFailure::NotUtf8));
     }
 }

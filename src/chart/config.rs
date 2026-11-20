@@ -18,9 +18,9 @@ pub const DEFAULT_TIMEOUT_SECONDS: u64 = 10;
 pub const STDOUT_LIMIT_BYTES: usize = 1_048_576;
 pub const STDERR_LIMIT_BYTES: usize = 8_192;
 pub const MAX_CONCURRENT_COMMANDS: usize = 4;
-const MAX_TIMEOUT_SECONDS: u64 = 60;
-const DEFAULT_STALE_FLOOR_SECONDS: u64 = 90;
-const MAX_TOP_N: u8 = 16;
+pub const MAX_TIMEOUT_SECONDS: u64 = 60;
+pub const DEFAULT_STALE_FLOOR_SECONDS: u64 = 90;
+pub const MAX_TOP_N: u8 = 16;
 const PLACEHOLDERS: [&str; 3] = ["{from}", "{to}", "{timezone}"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
@@ -387,6 +387,45 @@ fn validate_card(card: &ChartCardConfig, source: &ChartSourceConfig) -> Result<(
     Ok(())
 }
 
+/// One configuration failure with the structured key path it belongs to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChartConfigIssue {
+    /// For example `chart_sources[0].refresh_seconds`; the owning table when
+    /// the failure names no single key.
+    pub key: String,
+    pub message: String,
+    rendered: String,
+}
+
+impl ChartConfigIssue {
+    /// The text `validate_chart_config` has always returned.
+    pub fn rendered(&self) -> &str {
+        &self.rendered
+    }
+
+    fn at(table: String, error: &str) -> Self {
+        let rendered = format!("{table}.{error}");
+        let named = error.split_once(": ").filter(|(key, _)| {
+            !key.is_empty()
+                && key
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '_' || c == '.')
+        });
+        match named {
+            Some((key, message)) => Self {
+                key: format!("{table}.{key}"),
+                message: message.to_string(),
+                rendered,
+            },
+            None => Self {
+                key: table,
+                message: error.to_string(),
+                rendered,
+            },
+        }
+    }
+}
+
 /// Validates ids, uniqueness, command argv rules (R14), windows, bounds,
 /// mapping pointers and metric declarations, card references, and (for
 /// `columns-v1` sources) card metric, dimension and summary choices (R4).
@@ -394,22 +433,32 @@ pub fn validate_chart_config(
     sources: &[ChartSourceConfig],
     cards: &[ChartCardConfig],
 ) -> Result<(), String> {
+    validate_chart_config_detailed(sources, cards).map_err(|issue| issue.rendered)
+}
+
+/// The same validation, naming the failing key.
+pub fn validate_chart_config_detailed(
+    sources: &[ChartSourceConfig],
+    cards: &[ChartCardConfig],
+) -> Result<(), ChartConfigIssue> {
     let mut source_ids = HashSet::new();
     for (index, source) in sources.iter().enumerate() {
-        validate_source(source).map_err(|error| format!("chart_sources[{index}].{error}"))?;
+        let table = || format!("chart_sources[{index}]");
+        validate_source(source).map_err(|error| ChartConfigIssue::at(table(), &error))?;
         if !source_ids.insert(source.id.as_str()) {
-            return Err(format!("chart_sources[{index}].id: duplicate source id"));
+            return Err(ChartConfigIssue::at(table(), "id: duplicate source id"));
         }
     }
     let mut card_ids = HashSet::new();
     for (index, card) in cards.iter().enumerate() {
+        let table = || format!("chart_cards[{index}]");
         let source = sources
             .iter()
             .find(|source| source.id == card.source)
-            .ok_or_else(|| format!("chart_cards[{index}].source: no chart source has this id"))?;
-        validate_card(card, source).map_err(|error| format!("chart_cards[{index}].{error}"))?;
+            .ok_or_else(|| ChartConfigIssue::at(table(), "source: no chart source has this id"))?;
+        validate_card(card, source).map_err(|error| ChartConfigIssue::at(table(), &error))?;
         if !card_ids.insert(card.id.as_str()) {
-            return Err(format!("chart_cards[{index}].id: duplicate card id"));
+            return Err(ChartConfigIssue::at(table(), "id: duplicate card id"));
         }
     }
     Ok(())

@@ -10,10 +10,14 @@ pub enum LaunchMode {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
-    Run { mode: LaunchMode },
+    Run {
+        mode: LaunchMode,
+    },
     Help,
     Version,
     Doctor,
+    /// `sidescope charts ...`: headless chart tools, handled before any GUI code.
+    Charts(Vec<String>),
 }
 
 pub fn parse_args<I>(args: I) -> Result<Command, String>
@@ -29,6 +33,7 @@ where
     };
 
     let cmd = match first.as_str() {
+        "charts" => return Ok(Command::Charts(iter.collect())),
         "-h" | "--help" => Command::Help,
         "-V" | "--version" => Command::Version,
         "doctor" | "--doctor" => Command::Doctor,
@@ -76,6 +81,7 @@ Sidescope — native Wayland status column for system telemetry, AI usage, and w
 USAGE:
   sidescope                 Launch the dashboard
   sidescope doctor          Check runtime environment, config file, and optional tools
+  sidescope charts          Author and verify chart sources and cards headlessly (see `sidescope charts --help`)
   sidescope --version       Print version and build revision
   sidescope --help          Print this help and configuration reference
 

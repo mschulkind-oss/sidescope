@@ -1,0 +1,338 @@
+{
+  "version": "sidescope-chart-v1",
+  "generated_at": "2026-11-20T12:02:10Z",
+  "observed_through": null,
+  "revision": "cli-1",
+  "range": {
+    "start": "2026-11-20T12:00:00Z",
+    "end": "2026-11-20T12:02:00Z",
+    "timezone": "UTC"
+  },
+  "intervals": [
+    {
+      "start": "2026-11-20T12:00:00Z",
+      "end": "2026-11-20T12:01:00Z"
+    },
+    {
+      "start": "2026-11-20T12:01:00Z",
+      "end": "2026-11-20T12:02:00Z"
+    }
+  ],
+  "metrics": {
+    "latency": {
+      "label": "Latency",
+      "unit": "ms",
+      "quantity": "gauge",
+      "estimate": false
+    }
+  },
+  "series": [
+    {
+      "id": "s00",
+      "dimensions": {
+        "service": "svc-00"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s01",
+      "dimensions": {
+        "service": "svc-01"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s02",
+      "dimensions": {
+        "service": "svc-02"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s03",
+      "dimensions": {
+        "service": "svc-03"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s04",
+      "dimensions": {
+        "service": "svc-04"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s05",
+      "dimensions": {
+        "service": "svc-05"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s06",
+      "dimensions": {
+        "service": "svc-06"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s07",
+      "dimensions": {
+        "service": "svc-07"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s08",
+      "dimensions": {
+        "service": "svc-08"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s09",
+      "dimensions": {
+        "service": "svc-09"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s10",
+      "dimensions": {
+        "service": "svc-10"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s11",
+      "dimensions": {
+        "service": "svc-11"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s12",
+      "dimensions": {
+        "service": "svc-12"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s13",
+      "dimensions": {
+        "service": "svc-13"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s14",
+      "dimensions": {
+        "service": "svc-14"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s15",
+      "dimensions": {
+        "service": "svc-15"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s16",
+      "dimensions": {
+        "service": "svc-16"
+      },
+      "metrics": {
+        "latency": {
+          "values": [
+            "1",
+            "2"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    }
+  ],
+  "notices": []
+}

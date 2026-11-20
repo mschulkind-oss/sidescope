@@ -9,5 +9,6 @@ pub mod error;
 pub mod facts;
 pub mod geometry;
 pub mod reduce;
+pub mod schema;
 pub mod state;
 pub mod time;

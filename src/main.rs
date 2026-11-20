@@ -301,6 +301,7 @@ fn main() {
             }
             return;
         }
+        Command::Charts(args) => std::process::exit(sidescope::chart_cli::run(args)),
         Command::Run { mode } => mode,
     };
     let demo = !matches!(mode, LaunchMode::Live);

@@ -27,6 +27,45 @@ impl ChartErrorKind {
         matches!(self, Self::ConfigInvalid | Self::MissingExecutable)
     }
 
+    /// Every kind a source can end with, in the order reports list them.
+    /// `CardMismatch` is a per-card refusal and has no source-level id.
+    pub const SOURCE_KINDS: [ChartErrorKind; 11] = [
+        Self::ConfigInvalid,
+        Self::MissingExecutable,
+        Self::SpawnFailed,
+        Self::NonzeroExit,
+        Self::Timeout,
+        Self::OutputBound,
+        Self::Cancelled,
+        Self::ParseFailure,
+        Self::UnsupportedVersion,
+        Self::InvalidMapping,
+        Self::InvalidDataset,
+    ];
+
+    /// Stable machine id used by reports and capture manifests.
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::ConfigInvalid => "invalid-config",
+            Self::MissingExecutable => "missing-executable",
+            Self::SpawnFailed => "spawn",
+            Self::NonzeroExit => "nonzero-exit",
+            Self::Timeout => "timeout",
+            Self::OutputBound => "output-bound",
+            Self::Cancelled => "cancelled",
+            Self::ParseFailure => "parse",
+            Self::UnsupportedVersion => "unsupported-version",
+            Self::InvalidMapping => "invalid-mapping",
+            Self::InvalidDataset => "invalid-dataset",
+            Self::CardMismatch => "card-mismatch",
+        }
+    }
+
+    /// The inverse of `id` for the source-level kinds.
+    pub fn from_source_id(id: &str) -> Option<Self> {
+        Self::SOURCE_KINDS.into_iter().find(|kind| kind.id() == id)
+    }
+
     pub fn label(self) -> &'static str {
         match self {
             Self::ConfigInvalid => "invalid configuration",

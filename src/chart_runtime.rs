@@ -5,19 +5,19 @@
 pub mod scheduler;
 
 use crate::chart::config::{
-    ChartSourceConfig, MAX_CONCURRENT_COMMANDS, Normalizer, RequestError, STDERR_LIMIT_BYTES,
-    STDOUT_LIMIT_BYTES, resolve_request_at,
+    ChartSourceConfig, MAX_CONCURRENT_COMMANDS, Normalizer, RequestError, ResolvedRequest,
+    STDERR_LIMIT_BYTES, STDOUT_LIMIT_BYTES, resolve_request_at,
 };
 use crate::chart::dataset::ChartDataset;
 use crate::chart::error::{ChartError, ChartErrorKind, sanitize_text};
 use crate::chart::state::{SourceInfo, SourceSnapshot};
 use crate::chart::time::{Interval, Timestamp};
-use crate::process::{CancelToken, CaptureLimits, RunFailure, run_with_stderr};
-use scheduler::{Action, Event, Scheduler};
+use crate::process::{CancelToken, CaptureLimits, RunFailure, run_raw};
+use scheduler::{Action, Event, RunPolicy, Scheduler};
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::process::Command;
-use std::sync::mpsc::{self, RecvTimeoutError, Sender};
+use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -25,12 +25,81 @@ use std::time::{Duration, Instant};
 /// What one finished command produced, held until the scheduler accepts it.
 struct Answer {
     request_window: Option<Interval>,
+    request: Option<ResolvedRequest>,
     latency: Duration,
+    /// The wall instant the attempt became terminal.
+    ended_at: Timestamp,
+    /// Process status; `None` when it did not exit normally or never ran.
+    exit: Option<i32>,
+    /// Exit-0 stdout within the bound, kept only for a one-shot run.
+    stdout: Option<Vec<u8>>,
     stderr_excerpt: Option<String>,
     /// Set when the request window is not open yet: nothing ran, nothing is
     /// published and the scheduler retries after this delay.
     deferred: Option<Duration>,
     result: Result<ChartDataset, ChartError>,
+}
+
+impl Answer {
+    /// An attempt that never reached a process.
+    fn bare(
+        latency: Duration,
+        deferred: Option<Duration>,
+        result: Result<ChartDataset, ChartError>,
+    ) -> Self {
+        Answer {
+            request_window: None,
+            request: None,
+            latency,
+            ended_at: Timestamp::now(),
+            exit: None,
+            stdout: None,
+            stderr_excerpt: None,
+            deferred,
+            result,
+        }
+    }
+}
+
+/// What a one-shot run reports for one source once it is terminal.
+#[derive(Debug)]
+pub struct Attempt {
+    pub source_id: String,
+    /// `None` when no request could be built (still deferred, or invalid).
+    pub request: Option<ResolvedRequest>,
+    pub ended_at: Timestamp,
+    pub latency_ms: u64,
+    pub exit: Option<i32>,
+    /// Exit-0 stdout within the bound, byte-exact, even if it failed to parse.
+    pub stdout: Option<Vec<u8>>,
+    pub stderr_excerpt: Option<String>,
+    /// The request window was still not open after the single retry.
+    pub still_deferred: bool,
+    pub result: Result<Arc<ChartDataset>, ChartError>,
+}
+
+/// A running one-shot: each selected source is attempted once.
+pub struct OneShot {
+    attempts: Receiver<Attempt>,
+    remaining: usize,
+    runtime: ChartRuntime,
+}
+
+impl OneShot {
+    /// Blocks for the next terminal source; `None` when every source is terminal.
+    pub fn recv(&mut self) -> Option<Attempt> {
+        if self.remaining == 0 {
+            return None;
+        }
+        let attempt = self.attempts.recv().ok()?;
+        self.remaining -= 1;
+        Some(attempt)
+    }
+
+    /// Stops owned process groups and reaps them.
+    pub fn finish(self) {
+        drop(self.runtime);
+    }
 }
 
 enum Message {
@@ -99,7 +168,28 @@ fn fresh_state(config: &ChartSourceConfig, revision: u64) -> SourceState {
 impl ChartRuntime {
     /// Spawns the scheduler thread. Does not run any command for an empty source list.
     pub fn start(sources: &[ChartSourceConfig], normalizer: Normalizer) -> ChartRuntime {
-        let scheduler = Scheduler::new(sources, MAX_CONCURRENT_COMMANDS);
+        Self::start_with(sources, normalizer, RunPolicy::Continuous, None)
+    }
+
+    /// Runs each source once under the one-shot policy; no refresh, backoff
+    /// retry or queued manual run follows a terminal attempt.
+    pub fn start_one_shot(sources: &[ChartSourceConfig], normalizer: Normalizer) -> OneShot {
+        let (sender, attempts) = mpsc::channel();
+        let runtime = Self::start_with(sources, normalizer, RunPolicy::OneShot, Some(sender));
+        OneShot {
+            attempts,
+            remaining: sources.len(),
+            runtime,
+        }
+    }
+
+    fn start_with(
+        sources: &[ChartSourceConfig],
+        normalizer: Normalizer,
+        policy: RunPolicy,
+        attempts: Option<Sender<Attempt>>,
+    ) -> ChartRuntime {
+        let scheduler = Scheduler::new_with_policy(sources, MAX_CONCURRENT_COMMANDS, policy);
         let shared = Arc::new(Mutex::new(Shared {
             sources: sources
                 .iter()
@@ -111,6 +201,7 @@ impl ChartRuntime {
             scheduler,
             shared: Arc::clone(&shared),
             normalizer,
+            attempts,
             sender: sender.clone(),
             origin: Instant::now(),
             running: HashMap::new(),
@@ -187,6 +278,8 @@ struct Driver {
     scheduler: Scheduler,
     shared: Arc<Mutex<Shared>>,
     normalizer: Normalizer,
+    /// Set for a one-shot run: terminal attempts go here, not into snapshots.
+    attempts: Option<Sender<Attempt>>,
     sender: Sender<Message>,
     origin: Instant,
     running: HashMap<(String, u64), (CancelToken, JoinHandle<()>)>,
@@ -222,12 +315,13 @@ impl Driver {
                     let deferred = answer.deferred;
                     self.pending.insert(source.clone(), (revision, answer));
                     if let Some(retry_after) = deferred {
-                        self.pending.remove(&source_id);
                         self.handle(Event::Deferred {
                             source,
                             revision,
                             retry_after,
                         });
+                        // A terminal one-shot deferral was taken by `publish`.
+                        self.pending.remove(&source_id);
                         continue;
                     }
                     self.handle(Event::Finished {
@@ -308,23 +402,31 @@ impl Driver {
         let worker_cancel = cancel.clone();
         let sender = self.sender.clone();
         let normalizer = self.normalizer;
+        let keep_stdout = self.attempts.is_some();
         let id = source.to_string();
         let spawned = std::thread::Builder::new()
             .name("chart-command".into())
             .spawn(move || {
                 let started = Instant::now();
                 let answer = catch_unwind(AssertUnwindSafe(|| {
-                    execute(&config, revision, normalizer, &worker_cancel, started)
+                    execute(
+                        &config,
+                        revision,
+                        normalizer,
+                        &worker_cancel,
+                        started,
+                        keep_stdout,
+                    )
                 }))
-                .unwrap_or_else(|_| Answer {
-                    request_window: None,
-                    latency: started.elapsed(),
-                    stderr_excerpt: None,
-                    deferred: None,
-                    result: Err(ChartError::new(
-                        ChartErrorKind::ParseFailure,
-                        "reading the command output failed internally",
-                    )),
+                .unwrap_or_else(|_| {
+                    Answer::bare(
+                        started.elapsed(),
+                        None,
+                        Err(ChartError::new(
+                            ChartErrorKind::ParseFailure,
+                            "reading the command output failed internally",
+                        )),
+                    )
                 });
                 let _ = sender.send(Message::Done {
                     source: id,
@@ -338,16 +440,14 @@ impl Driver {
                     .insert((source.to_string(), revision), (cancel, handle));
             }
             Err(_) => {
-                let answer = Answer {
-                    request_window: None,
-                    latency: Duration::ZERO,
-                    stderr_excerpt: None,
-                    deferred: None,
-                    result: Err(ChartError::new(
+                let answer = Answer::bare(
+                    Duration::ZERO,
+                    None,
+                    Err(ChartError::new(
                         ChartErrorKind::SpawnFailed,
                         "cannot start a worker thread",
                     )),
-                };
+                );
                 let _ = self.sender.send(Message::Done {
                     source: source.to_string(),
                     revision,
@@ -372,6 +472,21 @@ impl Driver {
             return;
         };
         if self.scheduler.revision(source) != Some(revision) {
+            return;
+        }
+        if let Some(attempts) = &self.attempts {
+            let answer = *answer;
+            let _ = attempts.send(Attempt {
+                source_id: source.to_string(),
+                request: answer.request,
+                ended_at: answer.ended_at,
+                latency_ms: u64::try_from(answer.latency.as_millis()).unwrap_or(u64::MAX),
+                exit: answer.exit,
+                stdout: answer.stdout,
+                stderr_excerpt: answer.stderr_excerpt,
+                still_deferred: answer.deferred.is_some(),
+                result: answer.result.map(Arc::new),
+            });
             return;
         }
         let next_due = self.scheduler.next_due(source);
@@ -450,35 +565,30 @@ fn stderr_excerpt(text: &str) -> Option<String> {
     (!clean.is_empty()).then_some(clean)
 }
 
+/// One attempt for both run policies: resolve the request, run the command
+/// under the bounds, normalize its exit-0 output.
 fn execute(
     config: &ChartSourceConfig,
     revision: u64,
     normalizer: Normalizer,
     cancel: &CancelToken,
     started: Instant,
+    keep_stdout: bool,
 ) -> Answer {
     let request = match resolve_request_at(config, Timestamp::now(), revision) {
         Ok(request) => request,
         Err(RequestError::Deferred { retry_after }) => {
-            return Answer {
-                request_window: None,
-                latency: started.elapsed(),
-                stderr_excerpt: None,
-                deferred: Some(retry_after),
-                result: Err(ChartError::new(
+            return Answer::bare(
+                started.elapsed(),
+                Some(retry_after),
+                Err(ChartError::new(
                     ChartErrorKind::Cancelled,
                     "the request window is not open yet",
                 )),
-            };
+            );
         }
         Err(RequestError::Invalid(error)) => {
-            return Answer {
-                request_window: None,
-                latency: started.elapsed(),
-                stderr_excerpt: None,
-                deferred: None,
-                result: Err(error),
-            };
+            return Answer::bare(started.elapsed(), None, Err(error));
         }
     };
     let mut command = Command::new(&request.argv[0]);
@@ -493,26 +603,44 @@ fn execute(
         timeout: config.timeout(),
     };
     let mut stderr_bytes = Vec::new();
-    let (excerpt, result) = match run_with_stderr(&mut command, &limits, cancel, &mut stderr_bytes)
-    {
-        Ok(captured) => (
-            config
+    let mut exit = None;
+    let mut stdout = None;
+    let (excerpt, result) = match run_raw(&mut command, &limits, cancel, &mut stderr_bytes) {
+        Ok(captured) => {
+            exit = Some(0);
+            let excerpt = config
                 .capture_stderr
                 .then(|| stderr_excerpt(&captured.stderr))
-                .flatten(),
-            normalizer(config, &captured.stdout, &request),
-        ),
-        Err(failure) => (
-            config
-                .capture_stderr
-                .then(|| stderr_excerpt(&String::from_utf8_lossy(&stderr_bytes)))
-                .flatten(),
-            Err(failure_error(failure)),
-        ),
+                .flatten();
+            let result = match std::str::from_utf8(&captured.stdout) {
+                Ok(text) => normalizer(config, text, &request),
+                Err(_) => Err(failure_error(RunFailure::NotUtf8)),
+            };
+            if keep_stdout {
+                stdout = Some(captured.stdout);
+            }
+            (excerpt, result)
+        }
+        Err(failure) => {
+            if let RunFailure::NonzeroExit(code) = failure {
+                exit = code;
+            }
+            (
+                config
+                    .capture_stderr
+                    .then(|| stderr_excerpt(&String::from_utf8_lossy(&stderr_bytes)))
+                    .flatten(),
+                Err(failure_error(failure)),
+            )
+        }
     };
     Answer {
         request_window: Some(request.window),
+        request: Some(request),
         latency: started.elapsed(),
+        ended_at: Timestamp::now(),
+        exit,
+        stdout,
         stderr_excerpt: excerpt,
         deferred: None,
         result,

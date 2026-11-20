@@ -1,0 +1,159 @@
+{
+  "version": "sidescope-chart-v1",
+  "generated_at": "2026-11-20T12:02:10Z",
+  "observed_through": null,
+  "revision": "cli-1",
+  "range": {
+    "start": "2026-11-20T12:00:00Z",
+    "end": "2026-11-20T12:02:00Z",
+    "timezone": "UTC"
+  },
+  "intervals": [
+    {
+      "start": "2026-11-20T12:00:00Z",
+      "end": "2026-11-20T12:01:00Z"
+    },
+    {
+      "start": "2026-11-20T12:01:00Z",
+      "end": "2026-11-20T12:02:00Z"
+    }
+  ],
+  "metrics": {
+    "amount": {
+      "label": "Amount",
+      "unit": "USD",
+      "quantity": "interval_total",
+      "estimate": false,
+      "unknown_contribution": "nonnegative"
+    }
+  },
+  "series": [
+    {
+      "id": "s0",
+      "dimensions": {
+        "project": "P1"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "10",
+            "0"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s1",
+      "dimensions": {
+        "project": "P2"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "8",
+            "0"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s2",
+      "dimensions": {
+        "project": "P3"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "6",
+            "0"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s3",
+      "dimensions": {
+        "project": "P4"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "4",
+            "0"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s4",
+      "dimensions": {
+        "project": "P5"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "2",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s5",
+      "dimensions": {
+        "project": "P6"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "1",
+            "1"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "s6",
+      "dimensions": {
+        "project": ""
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "3",
+            "0"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    }
+  ],
+  "notices": []
+}

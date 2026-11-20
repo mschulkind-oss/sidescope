@@ -1,4 +1,5 @@
 pub mod chart;
+pub mod chart_cli;
 pub mod chart_mapping;
 pub mod chart_runtime;
 pub mod chart_view;
@@ -156,12 +157,26 @@ pub struct AppConfig {
     pub chart_cards: Vec<chart::config::ChartCardConfig>,
 }
 
+/// A configuration failure; `key` is set only for a chart table or key.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigIssue {
+    pub key: Option<String>,
+    pub message: String,
+}
+
 pub fn parse_config(source: &str) -> Result<AppConfig, String> {
-    let config: AppConfig = toml::from_str(source).map_err(|error| error.to_string())?;
+    parse_config_detailed(source).map_err(|issue| issue.message)
+}
+
+/// `parse_config` with the failing chart key when there is one. The message is
+/// exactly the text `parse_config` returns.
+pub fn parse_config_detailed(source: &str) -> Result<AppConfig, ConfigIssue> {
+    let plain = |message: String| ConfigIssue { key: None, message };
+    let config: AppConfig = toml::from_str(source).map_err(|error| plain(error.to_string()))?;
     if let Some(id) = &config.theme
         && theme::index(id).is_none()
     {
-        return Err(format!("unknown theme id: {id}"));
+        return Err(plain(format!("unknown theme id: {id}")));
     }
     if let Some(ids) = &config.enabled {
         let mut seen = HashSet::new();
@@ -170,18 +185,22 @@ pub fn parse_config(source: &str) -> Result<AppConfig, String> {
             // exist, so an id it does not report shows the unavailable state
             // rather than failing startup.
             if id.is_empty() {
-                return Err("provider id must not be empty".to_string());
+                return Err(plain("provider id must not be empty".to_string()));
             }
             if !seen.insert(id) {
-                return Err(format!("duplicate provider id: {id}"));
+                return Err(plain(format!("duplicate provider id: {id}")));
             }
         }
     }
     if let Some(location) = &config.weather {
-        location.validate()?;
+        location.validate().map_err(plain)?;
     }
-    config.sensors.validate()?;
-    chart::config::validate_chart_config(&config.chart_sources, &config.chart_cards)?;
+    config.sensors.validate().map_err(plain)?;
+    chart::config::validate_chart_config_detailed(&config.chart_sources, &config.chart_cards)
+        .map_err(|issue| ConfigIssue {
+            message: issue.rendered().to_string(),
+            key: Some(issue.key),
+        })?;
     Ok(config)
 }
 

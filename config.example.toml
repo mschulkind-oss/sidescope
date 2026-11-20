@@ -44,6 +44,7 @@ show_agy_gpt_oss = false
 # this application's authority and is NOT sandboxed: read it before enabling it.
 # `sidescope doctor` prints every full command. Copy-ready synthetic examples
 # and an opt-in usage-cost profile are in examples/charts/.
+# Verify a candidate without a display: `sidescope charts check --config FILE`.
 # {from}, {to} (RFC 3339 instants) and {timezone} must each be a whole argument.
 # [[chart_sources]]
 # id = "example-metrics"

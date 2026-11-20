@@ -1,0 +1,393 @@
+{
+  "version": "sidescope-chart-v1",
+  "generated_at": "2026-11-20T12:02:10Z",
+  "observed_through": null,
+  "revision": "cli-1",
+  "range": {
+    "start": "2026-11-20T12:00:00Z",
+    "end": "2026-11-20T12:02:00Z",
+    "timezone": "UTC"
+  },
+  "intervals": [
+    {
+      "start": "2026-11-20T12:00:00Z",
+      "end": "2026-11-20T12:01:00Z"
+    },
+    {
+      "start": "2026-11-20T12:01:00Z",
+      "end": "2026-11-20T12:02:00Z"
+    }
+  ],
+  "metrics": {
+    "amount": {
+      "label": "Amount",
+      "unit": "USD",
+      "quantity": "interval_total",
+      "estimate": false,
+      "unknown_contribution": "nonnegative"
+    }
+  },
+  "series": [
+    {
+      "id": "m00",
+      "dimensions": {
+        "project": "Project 00"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "1.000",
+            "0.001"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m01",
+      "dimensions": {
+        "project": "Project 01"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "2.001",
+            "0.002"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m02",
+      "dimensions": {
+        "project": "Project 02"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "3.002",
+            "0.003"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m03",
+      "dimensions": {
+        "project": "Project 03"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "4.003",
+            "0.004"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m04",
+      "dimensions": {
+        "project": "Project 04"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "5.004",
+            "0.005"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m05",
+      "dimensions": {
+        "project": "Project 05"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "6.005",
+            "0.006"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m06",
+      "dimensions": {
+        "project": "Project 06"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "7.006",
+            "0.007"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m07",
+      "dimensions": {
+        "project": "Project 07"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "8.007",
+            "0.008"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m08",
+      "dimensions": {
+        "project": "Project 08"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "9.008",
+            "0.009"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m09",
+      "dimensions": {
+        "project": "Project 09"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "10.009",
+            "0.010"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m10",
+      "dimensions": {
+        "project": "Project 10"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "11.010",
+            "0.011"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m11",
+      "dimensions": {
+        "project": "Project 11"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "12.011",
+            "0.012"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m12",
+      "dimensions": {
+        "project": "Project 12"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "13.012",
+            "0.013"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m13",
+      "dimensions": {
+        "project": "Project 13"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "14.013",
+            "0.014"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m14",
+      "dimensions": {
+        "project": "Project 14"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "15.014",
+            "0.015"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m15",
+      "dimensions": {
+        "project": "Project 15"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "16.015",
+            "0.016"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m16",
+      "dimensions": {
+        "project": "Project 16"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "17.016",
+            "0.017"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m17",
+      "dimensions": {
+        "project": "Project 17"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "18.017",
+            "0.018"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m18",
+      "dimensions": {
+        "project": "Project 18"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "19.018",
+            "0.019"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    },
+    {
+      "id": "m19",
+      "dimensions": {
+        "project": "Project 19"
+      },
+      "metrics": {
+        "amount": {
+          "values": [
+            "20.019",
+            "0.020"
+          ],
+          "quality": [
+            "complete",
+            "complete"
+          ]
+        }
+      }
+    }
+  ],
+  "notices": []
+}

@@ -1,0 +1,36 @@
+{
+  "version": "sidescope-chart-v1",
+  "generated_at": "2026-11-20T12:02:10Z",
+  "observed_through": null,
+  "revision": "cli-1",
+  "range": {
+    "start": "2026-11-20T12:00:00Z",
+    "end": "2026-11-20T12:02:00Z",
+    "timezone": "UTC"
+  },
+  "intervals": [],
+  "metrics": {
+    "amount": {
+      "label": "Amount",
+      "unit": "USD",
+      "quantity": "interval_total",
+      "estimate": false,
+      "unknown_contribution": "nonnegative"
+    }
+  },
+  "series": [
+    {
+      "id": "a",
+      "dimensions": {
+        "project": "A"
+      },
+      "metrics": {
+        "amount": {
+          "values": [],
+          "quality": []
+        }
+      }
+    }
+  ],
+  "notices": []
+}
