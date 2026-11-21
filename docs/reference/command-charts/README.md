@@ -3,7 +3,7 @@ title: "Command charts: orientation"
 status: accepted
 stage: CURRENT
 verified: 2026-11-20
-verified_commit: 14fb83d
+verified_commit: 232aaec
 covers:
   - src/chart/
   - src/chart_runtime.rs
@@ -13,13 +13,14 @@ covers:
   - src/chart_view/
   - src/chart_host.rs
   - src/process.rs
+  - src/chart_cli/
 tags: [reference, charts, extensibility]
 summary: "What the command-driven chart subsystem is, the five principles that shape it, how its three layers connect, and which page answers which question."
 ---
 
 # Command charts: orientation
 
-**Status:** Verified 2026-11-20 against `14fb83d`. MEASURED: the full test suites and a private-compositor run on synthetic commands and fixtures. UNMEASURED: behavior with the owner's real collector on a real desktop, and the text a screen reader speaks. See [what is not established](#what-is-not-established).
+**Status:** Verified 2026-11-20 against `232aaec` plus the commit that adds the authoring-tools page. MEASURED: the full test suites and a private-compositor run on synthetic commands and fixtures. UNMEASURED: behavior with the owner's real collector on a real desktop, and the text a screen reader speaks. See [what is not established](#what-is-not-established).
 
 Sidescope draws time series, time bars, and ranked bars from the JSON that a local command prints. It does not understand any particular tool: spending, latency, traffic, or power are all just named numeric metrics with a unit. The subsystem is opt-in. With no `[[chart_sources]]` table in the owner's configuration, no thread, no section, and no stylesheet exists.
 
@@ -69,12 +70,13 @@ Three rules keep the layers apart:
 | What exactly may a command print, and how does an existing JSON tool map onto it? | [Dataset contract and column mapping](dataset-and-mapping.md) |
 | How is a command configured, run, scheduled, retried, bounded, and diagnosed? | [Command runtime](command-runtime.md) |
 | How does a dataset become a chart, and what do the totals, marks, and interactions promise? | [Native charts](native-charts.md) |
+| How do I prove what a chart source and card show without a window, and what do the quota wrappers promise? | [Authoring and debugging tools](authoring-tools.md), the [chart cookbook](../../chart-cookbook.md) and the generated [key matrix](key-matrix.md) |
 
 ## What the subsystem is not
 
 - Not a plugin system: no native code loads, and no interpreter or expression language runs in the UI process.
 - Not a sandbox. A configured command runs with the application's authority and inherited environment. Nothing in the interface calls it safe, read-only, or sandboxed.
-- Not a settings editor, a watch/stream transport, a persistent history store, or an agent-activity integration. The first dashboard (agent spend) is an example profile only.
+- Not a settings editor, a watch/stream transport, a persistent history store, or a built-in agent-activity integration. The spending dashboard and the Claude quota cards are example profiles and two example wrappers, adopted by copying tables by hand; nothing in the application knows a producer's field names.
 - Not a billing display. The example profile labels its numbers a list-price estimate, never an invoice.
 
 ## What is not established
@@ -87,4 +89,4 @@ Three rules keep the layers apart:
 
 ## Related documents
 
-[Agent-activity request](../../requests/agent-activity-charts.md) and [received response](../../requests/agent-activity-charts-response.md) (producer additions committed upstream, reported not deployed); [chart authoring and debugging design](../../design/chart-authoring-and-debugging.md) (proposed CLI and quota adapters, not shipped); [source research](../../research/command-charts.md); [task list](../../tasks/command-charts.md); [user guide section](../../guide.md#7-charts-from-local-commands); [runnable examples](../../../examples/charts/README.md).
+[Agent-activity request](../../requests/agent-activity-charts.md) and [received response](../../requests/agent-activity-charts-response.md) (producer additions committed upstream, reported not deployed); [authoring and debugging tools](authoring-tools.md) (the headless `charts` commands and quota wrappers) and the [chart cookbook](../../chart-cookbook.md); [source research](../../research/command-charts.md); [task list](../../tasks/command-charts.md); [user guide section](../../guide.md#7-charts-from-local-commands); [runnable examples](../../../examples/charts/README.md).

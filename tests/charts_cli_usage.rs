@@ -855,3 +855,16 @@ fn doctor_and_the_legacy_report_flag_do_not_run_chart_sources() {
     assert_eq!(missing.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&missing.stderr).contains("--report requires a file path"));
 }
+
+#[test]
+fn schema_text_escapes_the_choice_separator_once() {
+    let (code, stdout, _) = run_text(&["charts", "schema", "--format", "text"]);
+    assert_eq!(code, 0);
+    let row = stdout
+        .lines()
+        .find(|line| line.starts_with("| format |"))
+        .expect("the format row");
+    // One backslash keeps the pipe inside its table cell; two end the cell early.
+    assert!(row.contains("sidescope-chart-v1 \\| columns-v1"), "{row}");
+    assert!(!row.contains("\\\\|"), "{row}");
+}

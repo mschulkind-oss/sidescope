@@ -3,7 +3,7 @@ title: "Command charts: command runtime, configuration and diagnostics"
 status: accepted
 stage: CURRENT
 verified: 2026-11-20
-verified_commit: 14fb83d
+verified_commit: 232aaec
 covers:
   - src/chart/config.rs
   - src/chart/error.rs
@@ -20,14 +20,14 @@ summary: "How a chart source is configured, turned into a request, run as a boun
 
 # Command charts: command runtime, configuration and diagnostics
 
-**Status:** Verified 2026-11-20 against `14fb83d`. MEASURED with synthetic commands in unit tests, an integration test, and a private headless compositor; UNMEASURED against a real collector or a host desktop. Orientation: [README](README.md).
+**Status:** Verified 2026-11-20 against `232aaec` plus the commit that adds the authoring-tools page. MEASURED with synthetic commands in unit tests, an integration test, and a private headless compositor; UNMEASURED against a real collector or a host desktop. Orientation: [README](README.md).
 
 The runtime owns every side effect of the subsystem: resolving the question to ask, running the owner's command under bounds, deciding when to run it again, and publishing a **snapshot** per source. It imports no GTK. A pure **scheduler** state machine decides what to start, cancel, and publish from events and an injected monotonic time; a thin worker layer performs those actions.
 
 ## Authority and trust
 
 - A command runs with Sidescope's authority and inherited environment. It is **not sandboxed**, and nothing in the interface calls it safe or read-only.
-- Presence of a `[[chart_sources]]` entry in the owner's configuration **is** the enablement; there is no `enabled` key. `sidescope doctor` prints each full command and whether its executable exists; Info shows only the executable name, never a path or arguments, so screenshots do not carry them.
+- Presence of a `[[chart_sources]]` entry in the owner's configuration **is** the enablement; there is no `enabled` key. `sidescope doctor` prints each full command and whether its executable exists (it runs nothing); `sidescope charts run --source ID` runs exactly the sources you name, once each, with the same authority (see [authoring tools](authoring-tools.md)); Info shows only the executable name, never a path or arguments, so screenshots do not carry them.
 - A dataset, mapping, or command output can never supply a command or change a card. Sidescope never syncs, starts a collector, migrates, installs, or authenticates on a command's behalf.
 - The runtime starts only in live mode (decided by `starts_chart_runtime`). `--demo`, `--report`, and `--browser` never construct it, and demo scenarios build snapshots directly from fixtures.
 
@@ -111,4 +111,4 @@ Add a placeholder, a window form, or an error kind only together with configurat
 
 ## Where the code lives
 
-`chart::config` (parsing, validation, `resolve_request_at`), `chart::state` (`SourceSnapshot`, `SourceStatus`), `chart::error`, `chart_runtime` and `chart_runtime::scheduler`, `process` (`run_bounded`, `CancelToken`), `chart_host` (live/demo wiring, `starts_chart_runtime`, `AutomaticRefresh`), `cli` (help schema, `doctor`).
+`chart::config` (parsing, validation, `resolve_request_at`), `chart::state` (`SourceSnapshot`, `SourceStatus`), `chart::error`, `chart_runtime` and `chart_runtime::scheduler`, `chart_runtime::OneShot` (`start_one_shot`: each selected source attempted once, no refresh, backoff retry or queued manual run; a request still deferred after one retry is terminal), `process` (`run_bounded`, `CancelToken`, exit-0 stdout as raw bytes), `chart_host` (live/demo wiring, `starts_chart_runtime`, `AutomaticRefresh`), `cli` (help schema, `doctor`), `chart_cli` (the headless `charts` verbs).

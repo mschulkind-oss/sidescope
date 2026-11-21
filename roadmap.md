@@ -20,8 +20,7 @@ This is a routing table, not a feature catalog or a progress log. Details live i
 
 ## Command-driven charts
 
-1. [Build chart authoring and headless verification](docs/design/chart-authoring-and-debugging-plan.md) — the [accepted design](docs/design/chart-authoring-and-debugging.md) has a completed plan. Start the core-facts and quota-adapter tasks in parallel, then the CLI, then compatibility and docs. This includes spending and Claude quota views from the [producer response](docs/requests/agent-activity-charts-response.md); it does not wait on host-desktop access.
-2. [Verify command charts on the host](docs/tasks/command-charts.md) — the shipped charts are verified with synthetic commands (see the [reference](docs/reference/command-charts/README.md)); the real collector, desktop, screen reader and unexplained visual failure remain in the [QA record](docs/qa/command-charts.md#not-verified). This verification remains independent of the proposed authoring tools.
+1. [Verify command charts on the host](docs/tasks/command-charts.md) — the shipped charts, the headless [authoring tools](docs/reference/command-charts/authoring-tools.md) and the two quota wrappers are verified with synthetic commands and fixtures only; the real collector and producer, desktop, screen reader and unexplained visual failure remain in the [QA record](docs/qa/command-charts.md#not-verified).
 
 ## ▶️ Actionable
 

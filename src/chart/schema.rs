@@ -829,7 +829,7 @@ fn cell(text: &str) -> String {
 
 fn range_text(key: &KeyDescriptor) -> String {
     match (key.min, key.max, key.choices) {
-        (_, _, choices) if !choices.is_empty() => choices.join(" \\| "),
+        (_, _, choices) if !choices.is_empty() => choices.join(" | "),
         (Some(min), Some(max), _) => format!("{min} to {max}"),
         (Some(min), None, _) => format!("at least {min}"),
         _ => String::new(),
@@ -919,7 +919,7 @@ pub fn help_tables() -> String {
             if let Some(default) = key.default {
                 notes.push(format!("default {default}"));
             }
-            let range = range_text(key).replace("\\|", "|");
+            let range = range_text(key);
             if !range.is_empty() {
                 notes.push(range);
             }

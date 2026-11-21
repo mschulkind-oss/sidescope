@@ -46,6 +46,11 @@ test:
     bash scripts/test-deploy.sh
     bash scripts/test-release.sh
 
+# Regenerate the checked-in key matrix from the built binary.
+charts-matrix:
+    ./scripts/native-env.sh cargo build
+    ./scripts/native-env.sh bash -c 'bash scripts/charts-matrix.sh "$CARGO_TARGET_DIR/debug/sidescope"'
+
 test-visual:
     ./scripts/native-env.sh bash scripts/doctor.sh --visual
     ./scripts/native-env.sh cargo build

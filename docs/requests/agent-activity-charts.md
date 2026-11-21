@@ -14,7 +14,7 @@ vantage:
 
 ## 1. Summary and non-blocking promise
 
-Sidescope's [command-charts reference](../reference/command-charts/README.md) describes how it draws time-series and ranked charts from any local command. Its first example reads `agent-activity ledger series --format json --layout columns`. **The original CLI is sufficient for the shipped first charts**: Sidescope has a compatible example profile, and an owner-written wrapper can fill a mapping gap. The [chart authoring and debugging design](../design/chart-authoring-and-debugging.md) covers adopting the received additions; those new Sidescope tools and quota adaptations are not implemented. No request here is a prerequisite for building, testing, or releasing Sidescope's charts.
+Sidescope's [command-charts reference](../reference/command-charts/README.md) describes how it draws time-series and ranked charts from any local command. Its first example reads `agent-activity ledger series --format json --layout columns`. **The original CLI is sufficient for the shipped first charts**: Sidescope has a compatible example profile, and an owner-written wrapper can fill a mapping gap. The [authoring tools](../reference/command-charts/authoring-tools.md) and example quota wrappers adopt the received additions, verified only against synthetic fixtures and the producer's published ones. No request here is a prerequisite for building, testing, or releasing Sidescope's charts.
 
 The requests remove guesswork a consumer currently resolves by convention. They do not ask `agent-activity` to emit a Sidescope-specific format, draw anything, or integrate with GTK. Every proposed field is additive and optional.
 

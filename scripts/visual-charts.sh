@@ -99,6 +99,24 @@ run_chart_suite() {
   local hang="$RUNTIME/hang"
   mkdir -p "$hang"
   local ex="$ROOT/examples/charts"
+  # A synthetic quota journal answer relative to the request window: seven
+  # readings 15 minutes apart, a reset after the fifth and a gap before the
+  # seventh, the newest ending five minutes before the window end.
+  cat > "$RUNTIME/fake-quota.sh" <<'SH'
+#!/bin/sh
+while [ "$#" -gt 0 ]; do
+  case "$1" in --from) from=$2 ;; --to) to=$2 ;; esac
+  shift
+done
+end=$(date -u -d "$to" +%s)
+at() { date -u -d "@$((end - $1 * 60))" +%Y-%m-%dT%H:%M:%SZ; }
+printf '{"schemaVersion":1,"generatedAt":"%s","range":{"from":"%s","to":"%s"},"retentionDays":7,"truncated":false,' "$(at 0)" "$from" "$to"
+printf '"accounts":[{"provider":"claude","accountKey":"acct-a","accountLabel":"Work","at":["%s","%s","%s","%s","%s","%s","%s"],' \
+  "$(at 130)" "$(at 115)" "$(at 100)" "$(at 85)" "$(at 70)" "$(at 15)" "$(at 5)"
+printf '"windows":[{"id":"five_hour","label":"five_hour","percent":[64,71.5,80,88.25,6,9,14],'
+printf '"resets":[{"index":0,"resetsAt":"%s"},{"index":4,"resetsAt":"%s"}],"edges":[{"index":4,"kind":"reset_changed","utilizationDelta":null}]}]}]}\n' "$to" "$to"
+SH
+  chmod +x "$RUNTIME/fake-quota.sh"
   {
     printf 'enabled = []\ndensity = "comfortable"\n'
     cat <<TOML
@@ -116,6 +134,14 @@ format = "sidescope-chart-v1"
 window = "3h"
 timezone = "UTC"
 refresh_seconds = 60
+
+[[chart_sources]]
+id = "observed"
+command = ["python3", "$ex/quota-observed.py", "--account-key", "acct-a", "--window", "five_hour", "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}", "--producer", "$RUNTIME/fake-quota.sh"]
+format = "sidescope-chart-v1"
+window = "3h"
+timezone = "UTC"
+refresh_seconds = 300
 
 [[chart_sources]]
 id = "hung"
@@ -147,6 +173,15 @@ metric = "latency_ms"
 group_by = ["service"]
 
 [[chart_cards]]
+id = "observed-line"
+source = "observed"
+kind = "time-series"
+metric = "observed_percent"
+title = "Last observed five-hour quota (sampled gauge)"
+summary = "last"
+group_by = []
+
+[[chart_cards]]
 id = "hung-card"
 source = "hung"
 kind = "time-series"
@@ -162,11 +197,12 @@ TOML
   for _ in {1..60}; do
     if grep -q 'CHART_SOURCE id=spend dataset=true' "$log" \
       && grep -q 'CHART_SOURCE id=latency dataset=true' "$log" \
+      && grep -q 'CHART_SOURCE id=observed dataset=true' "$log" \
       && grep -q 'CHART_SOURCE id=recent dataset=true' "$log" \
       && grep -q 'CHART_SOURCE id=daily dataset=true' "$log"; then break; fi
     sleep 0.25
   done
-  for id in spend latency recent daily; do grep -q "CHART_SOURCE id=$id dataset=true error=none" "$log"; done
+  for id in spend latency observed recent daily; do grep -q "CHART_SOURCE id=$id dataset=true error=none" "$log"; done
   # Startup must not ask for a second query: the scheduler's first run is the only one.
   sleep 2
   [[ $(wc -l < "$RUNTIME/latency-calls") -eq 1 ]] || { echo "latency source ran $(wc -l < "$RUNTIME/latency-calls") times at startup" >&2; return 1; }
@@ -202,5 +238,40 @@ TOML
   if grep -Ei 'panicked|CRITICAL|Gtk-WARNING|Adwaita-WARNING' "$log"; then cat "$log" >&2; return 1; fi
   cp "$log" "$base-live-geometry.log"
   printf 'Live charts verified: spend/latency/columns profile loaded, hung source never blocked GTK, SIGTERM left no orphan (child %s, descendant %s)\n' "$child" "$descendant"
+
+  # Sampled gauge alone, so its card is on screen in every capture: readings are
+  # marked at their instants, the reset and the gap break the line, and the
+  # headline says "Last observed ... as of" the newest reading.
+  {
+    printf 'enabled = []\ndensity = "comfortable"\n'
+    cat <<TOML
+[[chart_sources]]
+id = "observed"
+command = ["python3", "$ex/quota-observed.py", "--account-key", "acct-a", "--window", "five_hour", "--from", "{from}", "--to", "{to}", "--timezone", "{timezone}", "--producer", "$RUNTIME/fake-quota.sh"]
+format = "sidescope-chart-v1"
+window = "3h"
+timezone = "UTC"
+refresh_seconds = 300
+
+[[chart_cards]]
+id = "observed-line"
+source = "observed"
+kind = "time-series"
+metric = "observed_percent"
+title = "Last observed five-hour quota (sampled gauge)"
+summary = "last"
+group_by = []
+TOML
+  } > "$XDG_CONFIG_HOME/sidescope/config.toml"
+  log="$RUNTIME/charts-sampled.log"
+  chart_launch "$log" "$BIN" --live
+  for _ in {1..60}; do grep -q 'CHART_SOURCE id=observed dataset=true error=none' "$log" && break; sleep 0.25; done
+  grep -q 'CHART_SOURCE id=observed dataset=true error=none' "$log"
+  swaymsg '[title="Sidescope"] focus' >/dev/null
+  wtype -d 200 'abc'
+  chart_capture_pair "$base-sampled"
+  if grep -Ei 'panicked|CRITICAL|Gtk-WARNING|Adwaita-WARNING' "$log"; then cat "$log" >&2; return 1; fi
+  chart_stop
+  printf 'Sampled gauge captured: %s-sampled-*.png\n' "$base"
 }
 run_chart_suite

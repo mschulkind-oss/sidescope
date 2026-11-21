@@ -15,7 +15,7 @@ Sidescope keeps live system telemetry, AI usage quotas, and local weather visibl
 - **System telemetry (zero config):** CPU and per-logical-core history graphs, Memory/Swap, Network throughput, Root Disk capacity, and `hwmon` temperatures/fan RPM.
 - **AI usage (auto-detected if installed):** Balances and reset-window pace indicators for OpenRouter, DeepSeek, Claude, Codex, z.ai, Antigravity, and Muse Code when [`ai-usagebar`](https://github.com/akitaonrails/ai-usagebar) is on your `PATH`.
 - **Weather & Air quality (off until configured):** Current conditions, 12-hour/5-day forecast, and US AQI/PM2.5 from Open-Meteo once you add explicit coordinates to `~/.config/sidescope/config.toml`.
-- **Charts from your own commands (opt-in):** Time series, daily bars and ranked bars drawn natively from the JSON that a command you configure prints (`[[chart_sources]]` and `[[chart_cards]]`). The charts know nothing about what is measured; see [the guide](docs/guide.md#7-charts-from-local-commands) and the synthetic [examples](examples/charts/README.md).
+- **Charts from your own commands (opt-in):** Time series, daily bars and ranked bars drawn natively from the JSON that a command you configure prints (`[[chart_sources]]` and `[[chart_cards]]`). The charts know nothing about what is measured; see [the guide](docs/guide.md#7-charts-from-local-commands), the synthetic [examples](examples/charts/README.md) and the [cookbook](docs/chart-cookbook.md). `sidescope charts` (`schema`, `check`, `replay`, `run`) validates a candidate chart and proves what it shows without opening a window.
 
 ---
 
@@ -84,7 +84,7 @@ To configure **AI usage (`ai-usagebar`)**, **credential handling** (including `y
 
 - Sidescope reads **no** API keys, tokens, or account files itself; AI cards read normalized JSON from `ai-usagebar usage --json`.
 - Location is **never** inferred via IP or GPS — weather requests happen only when you set explicit coordinates in `~/.config/sidescope/config.toml`.
-- Chart commands are **not sandboxed**: each one you configure runs with Sidescope's own authority and environment, so read a command before enabling it. Sidescope never installs, authenticates or starts a collector for them, and no chart is shown or run unless you configure it.
+- Chart commands are **not sandboxed**: each one you configure runs with Sidescope's own authority and environment, so read a command before enabling it. Sidescope never installs, authenticates or starts a collector for them, and no chart is shown or run unless you configure it. `sidescope charts check`, `schema` and `replay` execute nothing; `sidescope charts run` executes exactly the sources you name, once each, with the same authority.
 - Runtime theme and density cycling is session-only; Sidescope never modifies your config file.
 
 ---

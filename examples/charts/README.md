@@ -4,6 +4,7 @@ Synthetic, opt-in examples for Sidescope's command-driven charts. Nothing here i
 automatically; copy what you want into your own configuration file. Commands run with
 Sidescope's authority and inherited environment, **not in a sandbox**, so read a command
 before enabling it and replace the example executable names with your own paths.
+To verify a candidate without a window, see the [chart cookbook](../../docs/chart-cookbook.md): `sidescope charts check`, `replay` and `run` print one JSON report each.
 
 | File | What it is |
 | :--- | :--- |
@@ -76,7 +77,7 @@ Remove the trial with `rm -r "$HOME/.cache/sidescope-charts-try"`.
 
 Probe by hand; Sidescope never probes, rewrites a query or falls back:
 
-- **Legacy** `agent-activity.toml` works with any producer that has `--layout columns`.
+- **Legacy** [`agent-activity.toml`](./agent-activity.toml) works with any producer that has `--layout columns`.
 - **Filtered** needs `agent-activity ledger capabilities --format json` to succeed. Against an older
   producer it fails visibly as a nonzero exit.
 - **Quota** estimate cards need that same output to list the four quota columns

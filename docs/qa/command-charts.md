@@ -121,3 +121,51 @@ Everything in [not verified](#not-verified) and the unproven first visual failur
 - **Limit of the guard.** It does not catch every wrong leaf name (a typo under an existing object is still an omitted leaf) and does not prove the author's intent; a producer that really omits a column is still read as the declared zero.
 - **Behavior moved with the facts refactor.** The GUI model is now `present_card(reduce_card(..))`; every existing view test passes unchanged (`chart_view` 41 existing, `chart_view_repair` 11). Two texts are new: the sampled time-bars mismatch and the replay banner; a third, `No intervals in this range`, replaces what was `No known values in this range` for an answer with series but no interval. The collapse overflow text `invalid dataset: sum overflow` is now the same `Totals exceed the supported numeric range` as the other two overflow sites.
 - Nothing here ran a real command; every fixture is synthetic. Sampled-gauge drawing was tested through the pure model, not through a compositor capture.
+
+## Chart authoring and debugging tools: integration QA (2026-11-20)
+
+Scope: the headless `sidescope charts` commands, the two quota wrappers and three example profiles, built in four tasks and landed in `bb6dc52` (typed card facts, sampled gauges, the mapper parent guard), `e414206` (wrappers, fixtures, profiles), `5074740` and `232aaec` (the commands), then verified here with the compatibility tests, the cookbook and key matrix, and a private-compositor run. Reference: [authoring tools](../reference/command-charts/authoring-tools.md). Everything used synthetic commands and fixtures; **no real producer, ledger, quota journal, account, credential or collector was run or read.**
+
+### Red events, preserved
+
+- **The adapter lane failed the receipt cleanliness gate** because a pre-existing, untracked setup symlink made the worktree look dirty. That red event stands as the lane's record. The gate lives outside this repository and has since been narrowed to exempt only that one managed link; this stage did not change it and no product file changed for it, so a later green gate is not evidence that the first run passed.
+- **Independent review of the commands (`5074740`)** found one major and five minor findings. The major, a refused exit-0 answer reporting `freshness: pass`, was repaired red-first in `232aaec` (`a_refused_exit_zero_output_never_reads_as_fresh` failed before, passes after). The five minors are left as the backlog below; none blocks.
+- **A key-matrix defect found in this stage.** `charts schema --format text` escaped the enum-choice separator twice (`\\|`), which ends a Markdown table cell early. Witnessed red first: `cargo test --test charts_cli_usage schema_text_escapes_the_choice_separator_once` failed on the unfixed code; after a one-line fix in the descriptor module it passes, and the generated matrix file now equals the command output. This is the only source change in this stage (plus a regression test); no other source file changed.
+
+### Evidence
+
+| Check | Result |
+| :--- | :--- |
+| `just format`, then `just check-ci` | exit 0: formatting, clippy with warnings as errors, 476 Rust tests and the four shell suites |
+| Rust tests by binary | lib 97, bin 30, `chart_compat` 22 (new), `chart_cookbook` 3 (new), `chart_facts` 29, `chart_foundation` 48, `chart_integration` 4, `chart_mapping` 37, `chart_profiles` 15, `chart_quota_wrappers` 42, `chart_runtime` 41, `chart_view` 47, `chart_view_repair` 11, `charts_cli_capture` 7, `charts_cli_replay` 15, `charts_cli_run` 7, `charts_cli_usage` 13, `cli` 8 |
+| Cookbook and matrix | every runnable cookbook block was run as written and matched its printed lines; mutating one printed value, and then one matrix line, each failed the matching test, and regenerating restored it |
+| Private compositor, chart suite only (`SIDESCOPE_VISUAL_CHARTS_ONLY=1 just test-visual`) | exit 0 (all seven demo scenarios, Details keyboard and in-place update, the live synthetic profile with a hung source and SIGTERM cleanup) |
+| Docs | `vantage-check --strict` on every touched or referring page: nothing to fix; `vantage-check index` runs and lists only the two existing unrelated open questions; no `[planning.stages]` is declared, so Ready-to-build, Ready-to-graduate and Stage-conflict sections are not produced and no automated stage check was available |
+
+The compatibility tests drive the real binary over the imported and invented fixtures and assert hand-derived values (the jq line that derives each is above the test): an empty answer, an all-zero answer, unpriced lower bounds, the metered subtotal beside stacked subscription channels, the open-bucket downgrade, the 23-hour and 25-hour days, the objects layout refused instead of drawn as zero, the producer's error body as stdout and as stderr of a failing producer, the capability check with and without the quota columns, exact quota points through the estimate wrapper and the bounded-percent refusal, every observed selector and edge case, the late-correction pair through the runtime's publication path, and the filtered `recent` card on a group-none answer. They pin landed behavior, so none was first red; the cookbook and matrix tests were first red because their documents did not exist.
+
+### Public CLI semantic proof
+
+Through the real binary, no display: a candidate with one mismatched card reports that card refused with its siblings plotted; `replay` is byte-identical on repeat; `replay --from-capture` equals the `run` that wrote it on every semantic fact, with `data_origin` `replay`, a null attempt and `execution` and `freshness` `not-run`; usage errors, a missing explicit configuration, unreadable data and `--at` on `run` each print exactly one JSON document with exit 2; no source is spawned for an unselected id.
+
+Hostile boundaries exercised by hand: an existing capture file (`capture-path`, nothing written); a 1 MiB plus one byte data file and a missing data file (`data-unreadable`); non-UTF-8 data (a `parse` finding, exit 1); a capture directory with no manifest (`data-unreadable`); `run` with no selector (`usage`, no process started, no marker). A good capture directory is `700` with `600` files.
+
+### Pictures inspected
+
+The ignored captures of the sampled-gauge card (`stripe-charts-sampled-wide-bottom.png` at 640 px and `stripe-charts-sampled-narrow-5.png` at 378 px) were opened and read, not merely produced. The card shows seven synthetic readings as marks at their own instants, joined only between consecutive readings; the reset and the 55-minute gap each break the line (a four-reading segment, one isolated mark, a two-reading segment); the headline reads "Last observed 14.00%" with "as of" the newest reading's instant; the time axis and the Details and Info buttons are intact at both widths; and in the live capture the card renders beside the other synthetic charts without overlap. The first full-suite captures did not show this card on screen (the page step skips it), so a dedicated capture was added to the visual script. Observed in the pictures and left alone: the "as of" instant prints with a `+00:00` suffix.
+
+### Not verified
+
+- A real producer or account: the wrappers were checked against the producer's source and published fixtures only.
+- A request deferred at local midnight (scheduler unit tests only), a stdout file cut short by a full disk, host-desktop behavior, screen-reader speech and accessibility, and release size: unchanged from the sections above.
+- The unexplained first full-suite visual failure stays unexplained; the green chart-only run here does not explain it.
+- The full 21-theme sweep was not rerun; this stage changed no theme or non-chart style.
+- An existing capture directory keeps its own permissions (only the files are forced to owner read-write), because only a directory the command creates is made owner-only.
+
+### Backlog (nonblocking, from the independent review)
+
+1. Reserved payload names are refused only in their defined position: a `sampled` or `breaks` at the top level or on a series object of a `sidescope-chart-v1` payload is accepted, and a stray series-level `breaks` in a v1.1 payload is accepted and never applied. Refuse them at every structural level, or narrow the reference wording.
+2. A ranked gauge card over 16 series with no intervals reports capacity before no-intervals (the time card has the planned order).
+3. Ranked Details place Unknown rows after every named row rather than in value order (unchanged GUI behavior); document or sort.
+4. The `--offset N, --limit N` help line runs into its description with no separator.
+5. `quota-estimate.py --convert-stdin` does not compare the answer's echoed grouping with its flags (unreachable in live mode); a test currently pins the mismatched conversion.
