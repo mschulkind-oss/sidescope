@@ -76,7 +76,7 @@ jobs:
             dist/sidescope.rb
             dist/SHA256SUMS
       - name: Publish uvx wheel to PyPI
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
       - name: Upload wheel via PyPI Trusted Publishing
         run: uv publish --trusted-publishing always dist/*.whl
       - name: Checkout homebrew-tap
